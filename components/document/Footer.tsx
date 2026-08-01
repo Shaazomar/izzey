@@ -33,12 +33,12 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Three Columns Section */}
-      <div className="grid grid-cols-3 gap-6 text-[9px] font-mono text-slate-600 border-t border-slate-200 pt-4 leading-relaxed">
+      <div className="grid grid-cols-3 gap-5 text-[8.5px] font-mono text-slate-600 border-t border-slate-200 pt-2.5 leading-snug">
         {/* Column 1: Next Steps / Payment Terms */}
         <div>
-          <h5 className="font-heading font-black text-[#2E4036] tracking-wider uppercase text-[10px] mb-1.5">
+          <h5 className="font-heading font-black text-[#2E4036] tracking-wider uppercase text-[10px] mb-1">
             {getCol1Heading()}
           </h5>
           {isQuote ? (
@@ -54,7 +54,7 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
 
         {/* Column 2: Thank You */}
         <div>
-          <h5 className="font-heading font-black text-[#2E4036] tracking-wider uppercase text-[10px] mb-1.5">
+          <h5 className="font-heading font-black text-[#2E4036] tracking-wider uppercase text-[10px] mb-1">
             {getCol2Heading()}
           </h5>
           <p>
@@ -64,7 +64,7 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
 
         {/* Column 3: Contact details */}
         <div>
-          <h5 className="font-heading font-black text-[#2E4036] tracking-wider uppercase text-[10px] mb-1.5">
+          <h5 className="font-heading font-black text-[#2E4036] tracking-wider uppercase text-[10px] mb-1">
             {getCol3Heading()}
           </h5>
           <p className="space-y-0.5">
@@ -78,7 +78,7 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
       </div>
 
       {/* Full-width Moss Green Strip */}
-      <div className="bg-[#2E4036] text-white text-[9px] font-mono py-2.5 px-5 rounded-xl flex justify-between items-center shadow-xs">
+      <div className="bg-[#2E4036] text-white text-[9px] font-mono py-2 px-5 rounded-xl flex justify-between items-center shadow-xs">
         <span className="font-bold tracking-wider uppercase text-[#CC5833]">Sauber. Sicher. Stressfrei.</span>
         <span>Ihr Partner für Umzüge & Reinigungsservices in Berlin.</span>
       </div>

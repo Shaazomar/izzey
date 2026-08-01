@@ -14,15 +14,15 @@ export default async function ReportsPage() {
   }
 
   const today = new Date();
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const startOfRange = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
 
   const mode = await getAccountingMode();
   
   const [summaryRes, jobsRes] = await Promise.all([
-    getFinancialSummary(startOfMonth, endOfDay, mode),
-    getJobsAnalytics(startOfMonth, endOfDay),
+    getFinancialSummary(startOfRange, endOfDay, mode),
+    getJobsAnalytics(startOfRange, endOfDay),
   ]);
 
   const summary = summaryRes.success && summaryRes.data ? summaryRes.data : {

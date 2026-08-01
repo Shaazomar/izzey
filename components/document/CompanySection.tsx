@@ -53,9 +53,9 @@ export default function CompanySection({
   };
 
   return (
-    <div className="grid grid-cols-2 gap-10 text-[11px] leading-relaxed">
+    <div className="grid grid-cols-2 gap-7 text-[10.5px] leading-snug">
       {/* Left Column: Anbieter */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <h3 className="font-mono text-[9px] font-bold tracking-widest text-[#2E4036] uppercase border-b border-slate-200 pb-1">
           {getProviderLabel()}
         </h3>
@@ -72,7 +72,7 @@ export default function CompanySection({
       </div>
 
       {/* Right Column: Angebot/Rechnung an */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <h3 className="font-mono text-[9px] font-bold tracking-widest text-[#2E4036] uppercase border-b border-slate-200 pb-1">
           {getRecipientLabel()}
         </h3>

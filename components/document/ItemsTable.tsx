@@ -59,10 +59,10 @@ export default function ItemsTable({
       <table className="w-full text-left text-xs font-body border-collapse">
         <thead>
           <tr className="bg-[#2E4036] text-white text-[10px] font-mono uppercase tracking-wider">
-            <th className="py-3 px-4 font-bold text-center w-12">{getPosHeader()}</th>
-            <th className="py-3 px-4 font-bold">{getDescHeader()}</th>
-            <th className="py-3 px-4 font-bold text-center w-24">{getTaxHeader()}</th>
-            <th className="py-3 px-4 font-bold text-right w-36">{getPriceHeader()}</th>
+            <th className="py-2 px-4 font-bold text-center w-12">{getPosHeader()}</th>
+            <th className="py-2 px-4 font-bold">{getDescHeader()}</th>
+            <th className="py-2 px-4 font-bold text-center w-24">{getTaxHeader()}</th>
+            <th className="py-2 px-4 font-bold text-right w-36">{getPriceHeader()}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200/60 font-mono text-[11px]">
@@ -78,12 +78,12 @@ export default function ItemsTable({
                 className={`${isEven ? 'bg-white' : 'bg-slate-50/80'} align-top`}
               >
                 {/* Position */}
-                <td className="py-3.5 px-4 text-center font-bold text-slate-400">
+                <td className="py-1.5 px-4 text-center font-bold text-slate-400">
                   {item.position || idx + 1}
                 </td>
 
                 {/* Beschreibung (Title & Subtitle only - no unit, qty, rate, discount breakdown) */}
-                <td className="py-3.5 px-4 font-body">
+                <td className="py-1.5 px-4 font-body">
                   <p className="font-extrabold text-slate-900 text-xs leading-snug">
                     {item.serviceName}
                   </p>
@@ -95,12 +95,12 @@ export default function ItemsTable({
                 </td>
 
                 {/* Tax / USt. */}
-                <td className="py-3.5 px-4 text-center font-bold text-slate-700 text-xs">
+                <td className="py-1.5 px-4 text-center font-bold text-slate-700 text-xs">
                   {item.vatPercent}%
                 </td>
 
                 {/* Net Price */}
-                <td className="py-3.5 px-4 text-right font-bold text-slate-900 text-xs">
+                <td className="py-1.5 px-4 text-right font-bold text-slate-900 text-xs">
                   {formatCurrency(lineTotalNet)}
                 </td>
               </tr>

@@ -69,28 +69,28 @@ export default function Header({
   };
 
   return (
-    <div className="flex justify-between items-start border-b-2 border-[#2E4036]/20 pb-5">
+    <div className="flex justify-between items-start border-b-2 border-[#2E4036]/20 pb-3">
       {/* Top Left: Logo */}
-      <div className="relative w-[260px] h-[80px]">
+      <div className="relative w-[210px] h-[64px]">
         <Image
           src="/logo.png"
           alt="Izzey Clean & Move"
           fill
           priority
-          sizes="260px"
+          sizes="210px"
           className="object-contain object-left"
         />
       </div>
 
       {/* Top Right: Heading & Quotation Info Box */}
       <div className="flex flex-col items-end text-right">
-        <h1 className="font-heading font-black text-2xl text-[#2E4036] tracking-wider mb-2 uppercase">
+        <h1 className="font-heading font-black text-xl text-[#2E4036] tracking-wider mb-1.5 uppercase">
           {getHeading()}
         </h1>
-        
+
         {/* Info Box */}
-        <div className="border border-slate-300 rounded-xl p-3 bg-slate-50 text-[10px] font-mono w-[310px] shadow-2xs">
-          <div className="space-y-1.5">
+        <div className="border border-slate-300 rounded-xl p-2.5 bg-slate-50 text-[10px] font-mono w-[300px] shadow-2xs">
+          <div className="space-y-1">
             <div className="flex justify-between items-center gap-4">
               <span className="text-slate-500 uppercase text-[8.5px] font-bold tracking-wider whitespace-nowrap">{getNumberLabel()}</span>
               <span className="font-bold text-[#2E4036] text-[11.5px] whitespace-nowrap">{number}</span>

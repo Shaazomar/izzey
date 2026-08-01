@@ -1,7 +1,7 @@
 'use server';
 
 import prisma from '../../lib/prisma';
-import { JobStatus, QuotationStatus, InvoiceStatus } from '@prisma/client';
+import { JobStatus, QuotationStatus, InvoiceStatus, PaymentStatus } from '@prisma/client';
 
 export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
   try {
@@ -27,6 +27,7 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
     });
 
     const monthlyRevenue = monthlyInvoices.reduce((sum, inv) => sum + Number(inv.grandTotal), 0);
+    const monthlyInvoicesCount = monthlyInvoices.length;
 
     // Today's revenue
     const todayInvoices = await prisma.invoice.findMany({
@@ -58,7 +59,44 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
       0
     );
 
-    // 3. Active Quotations & Jobs
+    // 2b. Overdue Invoices
+    const overdueInvoices = await prisma.invoice.findMany({
+      where: {
+        status: InvoiceStatus.OVERDUE,
+      },
+      select: { grandTotal: true, amountPaid: true },
+    });
+    const overdueCount = overdueInvoices.length;
+    const overdueAmount = overdueInvoices.reduce(
+      (sum, inv) => sum + (Number(inv.grandTotal) - Number(inv.amountPaid)),
+      0
+    );
+
+    // 2c. Monthly Paid Invoices and total monthly payments received
+    const monthlyPaidInvoices = await prisma.invoice.findMany({
+      where: {
+        issueDate: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+        status: InvoiceStatus.PAID,
+      },
+    });
+    const monthlyPaidInvoicesCount = monthlyPaidInvoices.length;
+
+    const monthlyPayments = await prisma.payment.findMany({
+      where: {
+        paymentDate: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+        status: PaymentStatus.PAID,
+      },
+      select: { amount: true },
+    });
+    const monthlyPaidAmount = monthlyPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // 3. Active & Total Quotations & Jobs
     const activeQuotesCount = await prisma.quotation.count({
       where: {
         status: {
@@ -66,6 +104,40 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
         },
       },
     });
+
+    const totalQuotesCount = await prisma.quotation.count();
+    const totalQuotesList = await prisma.quotation.findMany({
+      select: { grandTotal: true },
+    });
+    const totalQuotesAmount = totalQuotesList.reduce((sum, q) => sum + Number(q.grandTotal), 0);
+
+    // All-time invoice stats (excluding DRAFT)
+    const totalInvoices = await prisma.invoice.findMany({
+      where: {
+        status: {
+          not: InvoiceStatus.DRAFT,
+        },
+      },
+      select: { grandTotal: true },
+    });
+    const totalInvoicesCount = totalInvoices.length;
+    const totalInvoicesAmount = totalInvoices.reduce((sum, inv) => sum + Number(inv.grandTotal), 0);
+
+    const totalPaidInvoices = await prisma.invoice.findMany({
+      where: {
+        status: InvoiceStatus.PAID,
+      },
+      select: { grandTotal: true },
+    });
+    const totalPaidInvoicesCount = totalPaidInvoices.length;
+
+    const totalPayments = await prisma.payment.findMany({
+      where: {
+        status: PaymentStatus.PAID,
+      },
+      select: { amount: true },
+    });
+    const totalPaidAmount = totalPayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
     const activeJobsCount = await prisma.job.count({
       where: {
@@ -136,8 +208,8 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
     const cancelledJobs = await prisma.job.count({ where: { status: JobStatus.CANCELLED } });
 
     // 6. Recent Activity list
-    // Let's grab last 5 customer registrations, last 5 invoice generations, and last 5 payments
-    const [recentCustomers, recentInvoices, recentPayments] = await Promise.all([
+    // Grab last 5 customer registrations, last 5 invoice generations, last 5 payments, and last 5 quotations
+    const [recentCustomers, recentInvoices, recentPayments, recentQuotations] = await Promise.all([
       prisma.customer.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
@@ -146,36 +218,109 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
       prisma.invoice.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
-        select: { id: true, invoiceNumber: true, grandTotal: true, status: true, createdAt: true },
+        select: { 
+          id: true, 
+          invoiceNumber: true, 
+          grandTotal: true, 
+          status: true, 
+          createdAt: true,
+          customer: { select: { name: true } }
+        },
       }),
       prisma.payment.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
-        select: { id: true, amount: true, invoice: { select: { invoiceNumber: true } }, paymentDate: true },
+        select: { 
+          id: true, 
+          amount: true, 
+          invoice: { 
+            select: { 
+              invoiceNumber: true,
+              customer: { select: { name: true } }
+            } 
+          }, 
+          paymentDate: true 
+        },
+      }),
+      prisma.quotation.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { 
+          id: true, 
+          quoteNumber: true, 
+          grandTotal: true, 
+          status: true, 
+          createdAt: true,
+          customer: { select: { name: true } }
+        },
       }),
     ]);
 
     const recentActivity = [
       ...recentCustomers.map((c) => ({
         type: 'CUSTOMER',
-        text: `New customer registered: ${c.name}${c.companyName ? ` (${c.companyName})` : ''}`,
+        title: 'Customer Added',
+        subtitle: `${c.name}${c.companyName ? ` (${c.companyName})` : ''}`,
         date: c.createdAt,
       })),
       ...recentInvoices.map((i) => ({
         type: 'INVOICE',
-        text: `Invoice generated: ${i.invoiceNumber} for €${Number(i.grandTotal).toFixed(2)} (${i.status})`,
+        title: `Invoice ${i.invoiceNumber}`,
+        subtitle: `${i.customer.name} - €${Number(i.grandTotal).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${i.status})`,
         date: i.createdAt,
       })),
       ...recentPayments.map((p) => ({
         type: 'PAYMENT',
-        text: `Payment of €${Number(p.amount).toFixed(2)} recorded for ${p.invoice.invoiceNumber}`,
+        title: 'Payment Received',
+        subtitle: `Invoice ${p.invoice.invoiceNumber} - €${Number(p.amount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         date: p.paymentDate,
+      })),
+      ...recentQuotations.map((q) => ({
+        type: 'QUOTATION',
+        title: `Quotation ${q.quoteNumber}`,
+        subtitle: `${q.customer.name} - €${Number(q.grandTotal).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${q.status})`,
+        date: q.createdAt,
       })),
     ]
       .sort((a, b) => b.date.getTime() - a.date.getTime())
       .slice(0, 7);
 
-    // 7. Graph Data: Last 6 months revenue and expenses
+    // 7. Top Services this month based on Invoice Items
+    const monthlyInvoiceItems = await prisma.invoiceItem.findMany({
+      where: {
+        invoice: {
+          issueDate: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+          status: {
+            not: InvoiceStatus.DRAFT,
+          },
+        },
+      },
+      select: {
+        serviceName: true,
+        total: true,
+      },
+    });
+
+    const serviceTotals: Record<string, number> = {};
+    monthlyInvoiceItems.forEach((item) => {
+      serviceTotals[item.serviceName] = (serviceTotals[item.serviceName] || 0) + Number(item.total);
+    });
+
+    const topServicesRaw = Object.entries(serviceTotals)
+      .map(([name, amount]) => ({ name, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 4);
+
+    const maxServiceAmount = topServicesRaw.length > 0 ? Math.max(...topServicesRaw.map(s => s.amount)) : 1;
+    const topServices = topServicesRaw.map(s => ({
+      ...s,
+      percentage: maxServiceAmount > 0 ? Math.round((s.amount / maxServiceAmount) * 100) : 0
+    }));
+
+    // 8. Graph Data: Last 6 months revenue and payments
     const graphData = [];
     for (let i = 5; i >= 0; i--) {
       const monthStart = new Date(today.getFullYear(), today.getMonth() - i, 1);
@@ -192,7 +337,17 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
       });
       const revSum = invs.reduce((sum, inv) => sum + Number(inv.grandTotal), 0);
 
-      // Expenses
+      // Paid
+      const payments = await prisma.payment.findMany({
+        where: {
+          paymentDate: { gte: monthStart, lte: monthEnd },
+          status: PaymentStatus.PAID,
+        },
+        select: { amount: true },
+      });
+      const paidSum = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+      // Expenses (For backward compatibility / internal calculations)
       const exps = await prisma.expense.findMany({
         where: {
           date: { gte: monthStart, lte: monthEnd },
@@ -225,7 +380,9 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
       }
 
       graphData.push({
-        month: label,
+        date: label,
+        sales: revSum,
+        paid: paidSum,
         revenue: revSum,
         expenses: expSum,
         profit: revSum - expSum,
@@ -251,6 +408,18 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
         recentActivity,
         graphData,
         expenseBreakdown,
+        totalQuotesCount,
+        totalQuotesAmount,
+        totalInvoicesCount,
+        totalInvoicesAmount,
+        totalPaidInvoicesCount,
+        totalPaidAmount,
+        monthlyInvoicesCount,
+        monthlyPaidInvoicesCount,
+        monthlyPaidAmount,
+        overdueCount,
+        overdueAmount,
+        topServices,
       },
     };
   } catch (error: any) {

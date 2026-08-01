@@ -13,7 +13,8 @@ interface ReportsClientProps {
 export default function ReportsClient({ initialSummary, initialJobsAnalytics, mode }: ReportsClientProps) {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    d.setDate(1); // Start of month
+    d.setMonth(d.getMonth() - 1);
+    d.setDate(1); // Start of previous month
     return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => {

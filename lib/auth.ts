@@ -30,23 +30,41 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
+        email: { label: 'Email', type: 'text' },
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
         if (!credentials?.password) {
-          throw new Error('Passcode is required.');
+          throw new Error('Password or passcode is required.');
         }
 
-        if (credentials.password !== 'izzey@de') {
-          throw new Error('Invalid passcode provided.');
+        // 1. Passcode-only fallback logic (legacy support)
+        if (credentials.password === 'izzey@de') {
+          return {
+            id: 'izzey-admin-id',
+            name: 'Izzey Admin',
+            email: credentials.email || 'info@izzey.de',
+            role: 'SUPER_ADMIN'
+          };
         }
 
-        return {
-          id: 'izzey-admin-id',
-          name: 'Izzey Admin',
-          email: 'info@izzey.de',
-          role: 'SUPER_ADMIN'
-        };
+        // 2. Database user credentials logic
+        if (credentials.email) {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+          });
+
+          if (user && bcrypt.compareSync(credentials.password, user.password)) {
+            return {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+            };
+          }
+        }
+
+        throw new Error('Invalid credentials provided.');
       }
     })
   ],

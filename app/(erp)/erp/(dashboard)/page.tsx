@@ -13,6 +13,23 @@ import {
   ArrowUpRight, ArrowDownRight, ArrowRight
 } from 'lucide-react';
 
+function formatRelativeTime(dateStr: string | Date): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
@@ -27,16 +44,29 @@ export default async function DashboardPage() {
   ]);
 
   const stats = statsRes.success && statsRes.data ? JSON.parse(JSON.stringify(statsRes.data)) : {
-    todayRevenue: 1250,
-    monthlyRevenue: 7240.50,
-    monthlyExpenses: 2260.50,
-    netProfit: 4980.00,
-    outstandingPayments: 2260.50,
-    activeQuotesCount: 24,
-    activeJobsCount: 18,
+    todayRevenue: 0,
+    monthlyRevenue: 0,
+    monthlyExpenses: 0,
+    netProfit: 0,
+    outstandingPayments: 0,
+    activeQuotesCount: 0,
+    activeJobsCount: 0,
     expenseBreakdown: {},
     recentActivity: [],
-    jobStatus: { scheduled: 8, inProgress: 4, completed: 12 }
+    jobStatus: { scheduled: 0, inProgress: 0, completed: 0, cancelled: 0 },
+    totalQuotesCount: 0,
+    totalQuotesAmount: 0,
+    totalInvoicesCount: 0,
+    totalInvoicesAmount: 0,
+    totalPaidInvoicesCount: 0,
+    totalPaidAmount: 0,
+    monthlyInvoicesCount: 0,
+    monthlyPaidInvoicesCount: 0,
+    monthlyPaidAmount: 0,
+    overdueCount: 0,
+    overdueAmount: 0,
+    topServices: [],
+    graphData: []
   };
 
   const quotes = quotesRes.success && quotesRes.data ? JSON.parse(JSON.stringify(quotesRes.data)) : [];
@@ -51,8 +81,10 @@ export default async function DashboardPage() {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-slate-500">Total Quotations</p>
-            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">24</p>
-            <p className="text-xs font-medium text-slate-500">€ 8.950,00</p>
+            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">{stats.totalQuotesCount}</p>
+            <p className="text-xs font-medium text-slate-500">
+              € {Number(stats.totalQuotesAmount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
           </div>
           <div className="w-11 h-11 rounded-xl bg-[#2E4036]/10 text-[#2E4036] flex items-center justify-center shrink-0">
             <FileText className="w-5 h-5" />
@@ -63,8 +95,10 @@ export default async function DashboardPage() {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-slate-500">Total Invoices</p>
-            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">18</p>
-            <p className="text-xs font-medium text-slate-500">€ 7.240,50</p>
+            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">{stats.totalInvoicesCount}</p>
+            <p className="text-xs font-medium text-slate-500">
+              € {Number(stats.totalInvoicesAmount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
           </div>
           <div className="w-11 h-11 rounded-xl bg-[#CC5833]/10 text-[#CC5833] flex items-center justify-center shrink-0">
             <FileCheck className="w-5 h-5" />
@@ -75,8 +109,10 @@ export default async function DashboardPage() {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-slate-500">Paid Invoices</p>
-            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">12</p>
-            <p className="text-xs font-medium text-slate-500">€ 4.980,00</p>
+            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">{stats.totalPaidInvoicesCount}</p>
+            <p className="text-xs font-medium text-slate-500">
+              € {Number(stats.totalPaidAmount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
           </div>
           <div className="w-11 h-11 rounded-xl bg-[#2E4036]/10 text-[#2E4036] flex items-center justify-center shrink-0">
             <CheckCircle2 className="w-5 h-5" />
@@ -87,8 +123,12 @@ export default async function DashboardPage() {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-slate-500">Outstanding</p>
-            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">€ 2.260,50</p>
-            <p className="text-xs font-bold text-rose-600">5 Overdue</p>
+            <p className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              € {Number(stats.outstandingPayments).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className={`text-xs font-bold ${stats.overdueCount > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+              {stats.overdueCount} Overdue
+            </p>
           </div>
           <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
             <AlertCircle className="w-5 h-5" />
@@ -185,7 +225,7 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <SalesOverviewChart />
+          <SalesOverviewChart data={stats.graphData} />
         </div>
 
         {/* Recent Activities */}
@@ -194,72 +234,44 @@ export default async function DashboardPage() {
             <h2 className="font-extrabold text-base text-slate-900 mb-4">Recent Activities</h2>
             
             <div className="space-y-3.5">
-              
-              <div className="flex items-start justify-between gap-3 text-xs">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">Quotation ANG-2026-001 approved</p>
-                    <p className="text-[11px] text-slate-500">Embassy of Ireland</p>
-                  </div>
+              {stats.recentActivity && stats.recentActivity.length > 0 ? (
+                stats.recentActivity.map((activity: any, idx: number) => {
+                  let Icon = CheckCircle2;
+                  let colorClass = 'bg-emerald-50 text-emerald-600';
+                  
+                  if (activity.type === 'CUSTOMER') {
+                    Icon = UserPlus;
+                    colorClass = 'bg-amber-50 text-amber-600';
+                  } else if (activity.type === 'INVOICE') {
+                    Icon = FileCheck;
+                    colorClass = 'bg-purple-50 text-purple-600';
+                  } else if (activity.type === 'QUOTATION') {
+                    Icon = Send;
+                    colorClass = 'bg-[#2E4036]/10 text-[#2E4036]';
+                  }
+                  
+                  return (
+                    <div key={idx} className="flex items-start justify-between gap-3 text-xs">
+                      <div className="flex items-start gap-2.5">
+                        <div className={`w-7 h-7 rounded-full ${colorClass} flex items-center justify-center shrink-0 mt-0.5`}>
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">{activity.title}</p>
+                          <p className="text-[11px] text-slate-500">{activity.subtitle}</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                        {formatRelativeTime(activity.date)}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-slate-400 text-xs font-mono">
+                  No recent activity found.
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">2 min ago</span>
-              </div>
-
-              <div className="flex items-start justify-between gap-3 text-xs">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#2E4036]/10 text-[#2E4036] flex items-center justify-center shrink-0 mt-0.5">
-                    <Send className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">Quotation ANG-2026-002 sent</p>
-                    <p className="text-[11px] text-slate-500">Lukas Schneider</p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">15 min ago</span>
-              </div>
-
-              <div className="flex items-start justify-between gap-3 text-xs">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <FileCheck className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">Invoice INV-2026-012 paid</p>
-                    <p className="text-[11px] text-slate-500">Robert Müller</p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">1 hour ago</span>
-              </div>
-
-              <div className="flex items-start justify-between gap-3 text-xs">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <UserPlus className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">New customer Anna Becker added</p>
-                    <p className="text-[11px] text-slate-500">Customer</p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">2 hours ago</span>
-              </div>
-
-              <div className="flex items-start justify-between gap-3 text-xs">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#2E4036]/10 text-[#2E4036] flex items-center justify-center shrink-0 mt-0.5">
-                    <FileText className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">Invoice INV-2026-011 created</p>
-                    <p className="text-[11px] text-slate-500">Tech GmbH</p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">3 hours ago</span>
-              </div>
-
+              )}
             </div>
           </div>
 
@@ -284,19 +296,27 @@ export default async function DashboardPage() {
             <div className="space-y-2 text-xs font-medium">
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Total Sales</span>
-                <span className="font-bold text-slate-900">€ 7.240,50</span>
+                <span className="font-bold text-slate-900">
+                  € {Number(stats.monthlyRevenue).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Paid</span>
-                <span className="font-bold text-emerald-600">€ 4.980,00</span>
+                <span className="font-bold text-emerald-600">
+                  € {Number(stats.monthlyPaidAmount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">Outstanding</span>
-                <span className="font-bold text-rose-600">€ 2.260,50</span>
+                <span className="font-bold text-rose-600">
+                  € {Number(stats.outstandingPayments).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-slate-500">Overdue</span>
-                <span className="font-bold text-rose-600">€ 1.120,00</span>
+                <span className="font-bold text-rose-600">
+                  € {Number(stats.overdueAmount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
             </div>
           </div>
@@ -311,47 +331,28 @@ export default async function DashboardPage() {
             </div>
 
             <div className="space-y-3 text-xs">
-              
-              <div className="space-y-1">
-                <div className="flex justify-between font-semibold">
-                  <span className="text-slate-700">Deep Cleaning</span>
-                  <span className="font-bold text-slate-900">€ 3.850,00</span>
+              {stats.topServices && stats.topServices.length > 0 ? (
+                stats.topServices.map((service: any, idx: number) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-slate-700 truncate pr-2 max-w-[150px]">{service.name}</span>
+                      <span className="font-bold text-slate-900">
+                        € {Number(service.amount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-[#2E4036] h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${service.percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-slate-400 text-xs font-mono">
+                  No service sales recorded this month.
                 </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-[#2E4036] h-full rounded-full" style={{ width: '85%' }}></div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between font-semibold">
-                  <span className="text-slate-700">Move-Out Cleaning</span>
-                  <span className="font-bold text-slate-900">€ 1.450,00</span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-[#2E4036] h-full rounded-full" style={{ width: '45%' }}></div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between font-semibold">
-                  <span className="text-slate-700">Office Cleaning</span>
-                  <span className="font-bold text-slate-900">€ 1.120,00</span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-[#2E4036] h-full rounded-full" style={{ width: '35%' }}></div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between font-semibold">
-                  <span className="text-slate-700">Window Cleaning</span>
-                  <span className="font-bold text-slate-900">€ 820,00</span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-[#2E4036] h-full rounded-full" style={{ width: '25%' }}></div>
-                </div>
-              </div>
-
+              )}
             </div>
           </div>
 
