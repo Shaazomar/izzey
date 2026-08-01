@@ -11,153 +11,98 @@ export async function getDashboardStats(mode: 'OFFICIAL' | 'MANAGEMENT') {
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // 1. Calculate Revenue
-    // Standard invoices issued this month
-    const monthlyInvoices = await prisma.invoice.findMany({
-      where: {
-        issueDate: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-        status: {
-          not: InvoiceStatus.DRAFT,
-        },
-      },
-      select: { grandTotal: true, issueDate: true },
-    });
+    // 1. Parallelize initial database statistical queries
+    const [
+      monthlyInvoices,
+      todayInvoices,
+      unpaidInvoices,
+      overdueInvoices,
+      monthlyPaidInvoices,
+      monthlyPayments,
+      activeQuotesCount,
+      totalQuotesCount,
+      totalQuotesList,
+      totalInvoices,
+      totalPaidInvoices,
+      totalPayments,
+      activeJobsCount,
+      monthlyExpensesData,
+    ] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { issueDate: { gte: startOfMonth, lte: endOfMonth }, status: { not: InvoiceStatus.DRAFT } },
+        select: { grandTotal: true, issueDate: true },
+      }),
+      prisma.invoice.findMany({
+        where: { issueDate: { gte: today }, status: { not: InvoiceStatus.DRAFT } },
+        select: { grandTotal: true },
+      }),
+      prisma.invoice.findMany({
+        where: { status: { in: [InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE] } },
+        select: { grandTotal: true, amountPaid: true },
+      }),
+      prisma.invoice.findMany({
+        where: { status: InvoiceStatus.OVERDUE },
+        select: { grandTotal: true, amountPaid: true },
+      }),
+      prisma.invoice.findMany({
+        where: { issueDate: { gte: startOfMonth, lte: endOfMonth }, status: InvoiceStatus.PAID },
+        select: { grandTotal: true },
+      }),
+      prisma.payment.findMany({
+        where: { paymentDate: { gte: startOfMonth, lte: endOfMonth }, status: PaymentStatus.PAID },
+        select: { amount: true },
+      }),
+      prisma.quotation.count({
+        where: { status: { in: [QuotationStatus.SENT, QuotationStatus.APPROVED] } },
+      }),
+      prisma.quotation.count(),
+      prisma.quotation.findMany({ select: { grandTotal: true } }),
+      prisma.invoice.findMany({
+        where: { status: { not: InvoiceStatus.DRAFT } },
+        select: { grandTotal: true },
+      }),
+      prisma.invoice.findMany({
+        where: { status: InvoiceStatus.PAID },
+        select: { grandTotal: true },
+      }),
+      prisma.payment.findMany({
+        where: { status: PaymentStatus.PAID },
+        select: { amount: true },
+      }),
+      prisma.job.count({
+        where: { status: { in: [JobStatus.SCHEDULED, JobStatus.IN_PROGRESS] } },
+      }),
+      prisma.expense.findMany({
+        where: { date: { gte: startOfMonth, lte: endOfMonth }, isOfficial: mode === 'OFFICIAL' ? true : undefined },
+        select: { amount: true, category: true },
+      }),
+    ]);
 
     const monthlyRevenue = monthlyInvoices.reduce((sum, inv) => sum + Number(inv.grandTotal), 0);
     const monthlyInvoicesCount = monthlyInvoices.length;
-
-    // Today's revenue
-    const todayInvoices = await prisma.invoice.findMany({
-      where: {
-        issueDate: {
-          gte: today,
-        },
-        status: {
-          not: InvoiceStatus.DRAFT,
-        },
-      },
-      select: { grandTotal: true },
-    });
-
     const todayRevenue = todayInvoices.reduce((sum, inv) => sum + Number(inv.grandTotal), 0);
-
-    // 2. Outstanding Payments
-    const unpaidInvoices = await prisma.invoice.findMany({
-      where: {
-        status: {
-          in: [InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE],
-        },
-      },
-      select: { grandTotal: true, amountPaid: true },
-    });
 
     const outstandingPayments = unpaidInvoices.reduce(
       (sum, inv) => sum + (Number(inv.grandTotal) - Number(inv.amountPaid)),
       0
     );
 
-    // 2b. Overdue Invoices
-    const overdueInvoices = await prisma.invoice.findMany({
-      where: {
-        status: InvoiceStatus.OVERDUE,
-      },
-      select: { grandTotal: true, amountPaid: true },
-    });
     const overdueCount = overdueInvoices.length;
     const overdueAmount = overdueInvoices.reduce(
       (sum, inv) => sum + (Number(inv.grandTotal) - Number(inv.amountPaid)),
       0
     );
 
-    // 2c. Monthly Paid Invoices and total monthly payments received
-    const monthlyPaidInvoices = await prisma.invoice.findMany({
-      where: {
-        issueDate: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-        status: InvoiceStatus.PAID,
-      },
-    });
     const monthlyPaidInvoicesCount = monthlyPaidInvoices.length;
-
-    const monthlyPayments = await prisma.payment.findMany({
-      where: {
-        paymentDate: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-        status: PaymentStatus.PAID,
-      },
-      select: { amount: true },
-    });
     const monthlyPaidAmount = monthlyPayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
-    // 3. Active & Total Quotations & Jobs
-    const activeQuotesCount = await prisma.quotation.count({
-      where: {
-        status: {
-          in: [QuotationStatus.SENT, QuotationStatus.APPROVED],
-        },
-      },
-    });
-
-    const totalQuotesCount = await prisma.quotation.count();
-    const totalQuotesList = await prisma.quotation.findMany({
-      select: { grandTotal: true },
-    });
     const totalQuotesAmount = totalQuotesList.reduce((sum, q) => sum + Number(q.grandTotal), 0);
 
-    // All-time invoice stats (excluding DRAFT)
-    const totalInvoices = await prisma.invoice.findMany({
-      where: {
-        status: {
-          not: InvoiceStatus.DRAFT,
-        },
-      },
-      select: { grandTotal: true },
-    });
     const totalInvoicesCount = totalInvoices.length;
     const totalInvoicesAmount = totalInvoices.reduce((sum, inv) => sum + Number(inv.grandTotal), 0);
 
-    const totalPaidInvoices = await prisma.invoice.findMany({
-      where: {
-        status: InvoiceStatus.PAID,
-      },
-      select: { grandTotal: true },
-    });
     const totalPaidInvoicesCount = totalPaidInvoices.length;
-
-    const totalPayments = await prisma.payment.findMany({
-      where: {
-        status: PaymentStatus.PAID,
-      },
-      select: { amount: true },
-    });
     const totalPaidAmount = totalPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-
-    const activeJobsCount = await prisma.job.count({
-      where: {
-        status: {
-          in: [JobStatus.SCHEDULED, JobStatus.IN_PROGRESS],
-        },
-      },
-    });
-
-    // 4. Calculate Expenses
-    const monthlyExpensesData = await prisma.expense.findMany({
-      where: {
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-        isOfficial: mode === 'OFFICIAL' ? true : undefined,
-      },
-      select: { amount: true, category: true },
-    });
 
     let monthlyExpenses = monthlyExpensesData.reduce((sum, exp) => sum + Number(exp.amount), 0);
 

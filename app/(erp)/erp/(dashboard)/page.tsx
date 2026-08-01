@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { getServerSession } from 'next-auth/next';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
@@ -152,7 +153,7 @@ export default async function DashboardPage() {
           <div className="space-y-3">
             
             {/* New Quotation */}
-            <a href="/erp/quotes" className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-[#2E4036]/10 hover:border-[#2E4036]/20 transition-all group">
+            <Link href="/erp/quotes" prefetch={true} className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-[#2E4036]/10 hover:border-[#2E4036]/20 transition-all group">
               <div className="w-10 h-10 rounded-xl bg-[#2E4036]/10 text-[#2E4036] flex items-center justify-center shrink-0 group-hover:bg-[#2E4036] group-hover:text-white transition-colors">
                 <FileText className="w-5 h-5" />
               </div>
@@ -160,10 +161,10 @@ export default async function DashboardPage() {
                 <p className="text-xs font-bold text-slate-900 group-hover:text-[#2E4036] transition-colors">New Quotation</p>
                 <p className="text-[11px] text-slate-500">Create a new quotation</p>
               </div>
-            </a>
+            </Link>
 
             {/* New Invoice */}
-            <a href="/erp/invoices" className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-[#CC5833]/10 hover:border-[#CC5833]/20 transition-all group">
+            <Link href="/erp/invoices" prefetch={true} className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-[#CC5833]/10 hover:border-[#CC5833]/20 transition-all group">
               <div className="w-10 h-10 rounded-xl bg-[#CC5833]/10 text-[#CC5833] flex items-center justify-center shrink-0 group-hover:bg-[#CC5833] group-hover:text-white transition-colors">
                 <FileCheck className="w-5 h-5" />
               </div>
@@ -171,10 +172,10 @@ export default async function DashboardPage() {
                 <p className="text-xs font-bold text-slate-900 group-hover:text-[#CC5833] transition-colors">New Invoice</p>
                 <p className="text-[11px] text-slate-500">Create a new invoice</p>
               </div>
-            </a>
+            </Link>
 
             {/* New Customer */}
-            <a href="/erp/customers" className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-[#2E4036]/10 hover:border-[#2E4036]/20 transition-all group">
+            <Link href="/erp/customers" prefetch={true} className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-[#2E4036]/10 hover:border-[#2E4036]/20 transition-all group">
               <div className="w-10 h-10 rounded-xl bg-[#2E4036]/10 text-[#2E4036] flex items-center justify-center shrink-0 group-hover:bg-[#2E4036] group-hover:text-white transition-colors">
                 <UserPlus className="w-5 h-5" />
               </div>
@@ -182,10 +183,10 @@ export default async function DashboardPage() {
                 <p className="text-xs font-bold text-slate-900 group-hover:text-[#2E4036] transition-colors">New Customer</p>
                 <p className="text-[11px] text-slate-500">Add a new customer</p>
               </div>
-            </a>
+            </Link>
 
             {/* New Service */}
-            <a href="/erp/jobs" className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-[#CC5833]/10 hover:border-[#CC5833]/20 transition-all group">
+            <Link href="/erp/jobs" prefetch={true} className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-[#CC5833]/10 hover:border-[#CC5833]/20 transition-all group">
               <div className="w-10 h-10 rounded-xl bg-[#CC5833]/10 text-[#CC5833] flex items-center justify-center shrink-0 group-hover:bg-[#CC5833] group-hover:text-white transition-colors">
                 <Box className="w-5 h-5" />
               </div>
@@ -193,7 +194,7 @@ export default async function DashboardPage() {
                 <p className="text-xs font-bold text-slate-900 group-hover:text-[#CC5833] transition-colors">New Service</p>
                 <p className="text-[11px] text-slate-500">Add a new service</p>
               </div>
-            </a>
+            </Link>
 
           </div>
         </div>

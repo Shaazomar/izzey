@@ -62,10 +62,10 @@ export default function BaseTemplate({ data }: BaseTemplateProps) {
   return (
     <div 
       id="print-area"
-      className="print-container bg-white w-[210mm] min-h-[297mm] p-[10mm] mx-auto text-slate-900 flex flex-col justify-between box-border relative select-none font-body shadow-sm print:shadow-none print:border-none print:m-0"
+      className="print-container bg-white w-[210mm] min-h-[297mm] max-h-[297mm] p-[10mm] mx-auto text-slate-900 flex flex-col justify-between box-border relative select-none font-body shadow-sm print:shadow-none print:border-none print:m-0 overflow-hidden"
     >
       {/* Upper Content Wrapper */}
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {/* Document Header */}
         <Header
           type={data.type}
@@ -93,7 +93,7 @@ export default function BaseTemplate({ data }: BaseTemplateProps) {
         />
         
         {/* Notes & Summary */}
-        <div className="grid grid-cols-12 gap-5 items-start">
+        <div className="grid grid-cols-12 gap-4 items-start pt-1">
           <div className="col-span-7">
             <Notes notes={data.notes} language={language} />
           </div>
@@ -111,7 +111,7 @@ export default function BaseTemplate({ data }: BaseTemplateProps) {
       </div>
 
       {/* Footer Pinned to Bottom */}
-      <div className="pt-4">
+      <div className="pt-3">
         <Footer type={data.type} language={language} />
       </div>
       

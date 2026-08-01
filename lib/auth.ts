@@ -91,5 +91,6 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 24 * 60 * 60, // 1 day session duration
   },
+  useSecureCookies: process.env.NODE_ENV === 'production',
   secret: process.env.NEXTAUTH_SECRET || 'izzey-erp-development-super-secret-key',
 };

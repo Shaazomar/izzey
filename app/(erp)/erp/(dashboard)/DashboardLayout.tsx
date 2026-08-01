@@ -10,6 +10,7 @@ import {
   Zap, Landmark, AreaChart, ToggleLeft, ToggleRight, Sparkles, Building2
 } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import CommandPalette from '@/components/CommandPalette';
 import { setAccountingMode } from '@/app/actions/mode';
 
@@ -143,9 +144,10 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
                     const ItemIcon = item.icon;
 
                     return (
-                      <a
+                      <Link
                         key={itemIdx}
                         href={item.path}
+                        prefetch={true}
                         title={isCollapsed ? item.name : undefined}
                         className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                           isActive 
@@ -155,7 +157,7 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
                       >
                         <ItemIcon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                         {!isCollapsed && <span>{item.name}</span>}
-                      </a>
+                      </Link>
                     );
                   })}
                 </div>
@@ -245,30 +247,31 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
 
               {quickActionsOpen && (
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-fade-in">
-                  <a href="/erp/quotes" className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#2E4036]/10 hover:text-[#2E4036] rounded-xl transition-colors">
+                  <Link href="/erp/quotes" prefetch={true} className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#2E4036]/10 hover:text-[#2E4036] rounded-xl transition-colors">
                     <FileText className="w-4 h-4 text-[#2E4036]" />
                     <span>New Quotation</span>
-                  </a>
-                  <a href="/erp/invoices" className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#CC5833]/10 hover:text-[#CC5833] rounded-xl transition-colors">
+                  </Link>
+                  <Link href="/erp/invoices" prefetch={true} className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#CC5833]/10 hover:text-[#CC5833] rounded-xl transition-colors">
                     <FileCheck className="w-4 h-4 text-[#CC5833]" />
                     <span>New Invoice</span>
-                  </a>
-                  <a href="/erp/customers" className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#2E4036]/10 hover:text-[#2E4036] rounded-xl transition-colors">
+                  </Link>
+                  <Link href="/erp/customers" prefetch={true} className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#2E4036]/10 hover:text-[#2E4036] rounded-xl transition-colors">
                     <Users className="w-4 h-4 text-[#2E4036]" />
                     <span>Add Customer</span>
-                  </a>
+                  </Link>
                 </div>
               )}
             </div>
 
             {/* + New Button */}
-            <a
+            <Link
               href="/erp/quotes"
+              prefetch={true}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2E4036] hover:bg-[#1E2E25] text-white text-xs font-bold transition-all shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>New</span>
-            </a>
+            </Link>
 
           </div>
         </header>
@@ -315,9 +318,10 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
                         const isActive = pathname === item.path;
                         const ItemIcon = item.icon;
                         return (
-                          <a
+                          <Link
                             key={itemIdx}
                             href={item.path}
+                            prefetch={true}
                             onClick={() => setMobileOpen(false)}
                             className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                               isActive ? 'bg-[#CC5833] text-white' : 'text-slate-300 hover:bg-white/10'
@@ -325,7 +329,7 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
                           >
                             <ItemIcon className="w-4 h-4" />
                             <span>{item.name}</span>
-                          </a>
+                          </Link>
                         );
                       })}
                     </div>
