@@ -4,10 +4,9 @@ import React, { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Lock, Mail, Shield, ShieldCheck, Loader2 } from 'lucide-react';
+import { Lock, Shield, ShieldCheck, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,7 +21,7 @@ export default function LoginPage() {
     setLoginSuccess(false);
 
     // Phase 1: Authentication
-    setStatusText('VERIFYING ACCOUNT SIGNATURE...');
+    setStatusText('VERIFYING ACCESS SIGNATURE...');
     await new Promise((r) => setTimeout(r, 600));
 
     // Phase 2: Decrypting / Validating credentials
@@ -31,13 +30,13 @@ export default function LoginPage() {
 
     try {
       const res = await signIn('credentials', {
-        email: email.trim(),
+        email: 'info@izzey.de',
         password,
         redirect: false,
       });
 
       if (res?.error) {
-        setError(res.error || 'Authentication failed. Please check your credentials.');
+        setError(res.error || 'Authentication failed. Please verify the passcode.');
         setLoading(false);
       } else {
         // Phase 3: Successful login handshake
@@ -85,28 +84,11 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
-          {/* Email field */}
-          <div className="flex flex-col space-y-1.5">
-            <label className="text-[10px] font-bold font-mono tracking-widest text-[#F2F0E9]/50 uppercase flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-[#2E4036]" />
-              <span>Identity Email</span>
-            </label>
-            <input
-              type="email"
-              required
-              disabled={loading}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g., admin@izzey.de"
-              className="bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-[13px] text-white focus:outline-none focus:border-[#CC5833] focus:ring-1 focus:ring-[#CC5833]/30 transition-all placeholder:text-white/20 font-mono disabled:opacity-50"
-            />
-          </div>
-
           {/* Passcode / Password field */}
           <div className="flex flex-col space-y-1.5">
             <label className="text-[10px] font-bold font-mono tracking-widest text-[#F2F0E9]/50 uppercase flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5 text-[#2E4036]" />
-              <span>Access Code / Password</span>
+              <span>Access Passcode</span>
             </label>
             <input
               type="password"
@@ -153,8 +135,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 pt-6 border-t border-white/5 text-[10px] font-mono text-[#F2F0E9]/30 space-y-1 text-center">
-          <p>Passcode auth: enter info@izzey.de + passcode</p>
-          <p>User auth: enter account credentials</p>
+          <p>Please enter the master ERP access passcode.</p>
         </div>
 
       </div>
