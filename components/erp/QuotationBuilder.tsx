@@ -902,14 +902,14 @@ export default function QuotationBuilder({
 
           {/* Scaled A4 Document Container */}
           <div 
-            className="flex justify-center py-2 print:p-0 print:m-0 print:block print:w-full print:h-auto overflow-visible"
+            className="relative py-2 print:p-0 print:m-0 print:block print:w-full print:h-auto overflow-visible"
             style={{ 
               width: `calc(210mm * ${zoom})`,
               height: `calc(297mm * ${zoom} + 16px)` 
             }}
           >
             <div 
-              className="bg-white shadow-2xl border border-slate-300 rounded-[1.5rem] overflow-hidden transition-all print:transform-none print:shadow-none print:border-none print:rounded-none print:p-0 print:m-0 print:w-full"
+              className="bg-white shadow-2xl border border-slate-300 rounded-[1.5rem] overflow-hidden transition-all print:transform-none print:shadow-none print:border-none print:rounded-none print:p-0 print:m-0 print:w-full absolute left-0 top-2"
               style={{ 
                 transform: `scale(${zoom})`, 
                 transformOrigin: 'top left',

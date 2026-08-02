@@ -4,7 +4,12 @@ export const translations: Record<'en' | 'de', any> = {
     brandName: "Izzey clean & move",
     
     // Navbar
+    navHome: "Home",
     navServices: "Services",
+    navAbout: "About Us",
+    navWhyChooseUs: "Why Choose Us",
+    navContact: "Contact",
+    ctaBtn: "Book Now",
     navManagement: "Management",
     navProtocol: "Protocol",
     navBook: "Book a Service",
@@ -290,7 +295,12 @@ export const translations: Record<'en' | 'de', any> = {
     brandName: "Izzey clean & move",
 
     // Navbar
+    navHome: "Startseite",
     navServices: "Dienstleistungen",
+    navAbout: "Über uns",
+    navWhyChooseUs: "Warum wir",
+    navContact: "Kontakt",
+    ctaBtn: "Jetzt Buchen",
     navManagement: "Verwaltung",
     navProtocol: "Protokoll",
     navBook: "Service Buchen",
