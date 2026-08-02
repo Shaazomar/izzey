@@ -30,6 +30,9 @@ export default function CustomerModal({ isOpen, onClose, onSuccess }: CustomerMo
       phone: data.phone as string,
       companyName: (data.companyName as string) || undefined,
       notes: (data.notes as string) || undefined,
+      address: (data.address as string) || 'Boxhagener Str. 119',
+      city: (data.city as string) || 'Berlin',
+      country: (data.country as string) || 'Germany',
       properties: [
         {
           address: (data.address as string) || 'Boxhagener Str. 119',
