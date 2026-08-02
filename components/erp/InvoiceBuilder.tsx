@@ -800,7 +800,7 @@ export default function InvoiceBuilder({
         </div>
 
         {/* RIGHT PANEL: Sticky Live PDF Preview (1/2 Grid) */}
-        <div className="h-full overflow-y-auto p-6 bg-slate-200/70 flex flex-col items-center space-y-4 shadow-inner print:p-0 print:bg-white print:block print:w-full print:h-auto">
+        <div className="h-full overflow-y-auto overflow-x-auto p-6 bg-slate-200/70 flex flex-col items-center space-y-4 shadow-inner print:p-0 print:bg-white print:block print:w-full print:h-auto">
           
           <div className="no-print w-full max-w-[210mm] bg-white border border-slate-200 rounded-2xl p-3 shadow-xs flex items-center justify-between text-xs font-mono">
             <div className="flex items-center gap-2">
@@ -845,14 +845,17 @@ export default function InvoiceBuilder({
 
           {/* Scaled A4 Document Container */}
           <div 
-            className="w-full flex justify-center py-2 print:p-0 print:m-0 print:block print:w-full print:h-auto overflow-visible"
-            style={{ height: `calc(${297 * zoom}mm + 16px)` }}
+            className="flex justify-center py-2 print:p-0 print:m-0 print:block print:w-full print:h-auto overflow-visible"
+            style={{ 
+              width: `calc(210mm * ${zoom})`,
+              height: `calc(297mm * ${zoom} + 16px)` 
+            }}
           >
             <div 
-              className="bg-white shadow-2xl border border-slate-300 rounded-[1.5rem] overflow-hidden transform-gpu origin-top transition-all print:transform-none print:shadow-none print:border-none print:rounded-none print:p-0 print:m-0 print:w-full"
+              className="bg-white shadow-2xl border border-slate-300 rounded-[1.5rem] overflow-hidden transform-gpu transition-all print:transform-none print:shadow-none print:border-none print:rounded-none print:p-0 print:m-0 print:w-full"
               style={{ 
                 transform: `scale(${zoom})`, 
-                transformOrigin: 'top center',
+                transformOrigin: 'top left',
                 width: '210mm',
                 height: '297mm'
               }}
