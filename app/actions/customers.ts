@@ -17,6 +17,9 @@ export async function getCustomers(query?: string) {
           }
         : undefined,
       include: {
+        properties: {
+          orderBy: { createdAt: 'desc' },
+        },
         _count: {
           select: {
             properties: true,
@@ -61,7 +64,8 @@ export async function getCustomer(id: string) {
 
 export async function createCustomer(data: any) {
   try {
-    const validatedData = CustomerSchema.parse(data);
+    const { properties, ...customerData } = data;
+    const validatedData = CustomerSchema.parse(customerData);
     
     // Check if email already exists
     const existing = await prisma.customer.findUnique({
@@ -75,6 +79,19 @@ export async function createCustomer(data: any) {
       data: {
         ...validatedData,
         email: validatedData.email.toLowerCase(),
+        properties: properties && properties.length > 0 ? {
+          create: properties.map((p: any) => ({
+            address: p.address,
+            city: p.city,
+            postalCode: p.postalCode,
+            country: p.country || 'Germany',
+          }))
+        } : undefined
+      },
+      include: {
+        properties: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
