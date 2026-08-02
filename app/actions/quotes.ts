@@ -160,6 +160,8 @@ export async function createQuotation(data: any) {
           },
         },
         include: {
+          customer: true,
+          property: true,
           items: true,
         },
       });
@@ -253,6 +255,8 @@ export async function updateQuotation(id: string, data: any) {
           },
         },
         include: {
+          customer: true,
+          property: true,
           items: true,
         },
       });
@@ -320,6 +324,11 @@ export async function duplicateQuotation(id: string) {
               total: item.total,
             })),
           },
+        },
+        include: {
+          customer: true,
+          property: true,
+          items: true,
         },
       });
     });

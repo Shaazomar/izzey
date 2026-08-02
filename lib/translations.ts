@@ -128,11 +128,8 @@ export const translations: Record<'en' | 'de', any> = {
     cookieSettings: "Cookie Settings",
     
     // Redesign Keys
-    navHome: "Home",
-    navWhyChooseUs: "Why Choose Us",
     navGallery: "Gallery",
     navTestimonials: "Testimonials",
-    navContact: "Contact",
     heroBadge: "Professional Cleaning & Moving Services",
     heroTitleRedesign: "We Clean.<br/>We Move.<br/><span class='text-brandBlueLight'>You Relax.</span>",
     heroSubRedesign: "Izzey Clean & Move provides top-quality cleaning and moving services with care, precision, and reliability. Your space, our responsibility.",
@@ -181,7 +178,6 @@ export const translations: Record<'en' | 'de', any> = {
     test3Loc: "Hamburg, Germany",
     ctaTitleRedesign: "Ready for a Clean Space or a Smooth Move?",
     ctaSubRedesign: "Get in touch with us today and experience hassle-free service.",
-    ctaBtn: "Get a Free Quote",
     footDescRedesign: "We provide professional cleaning and moving services across Germany with care, reliability, and dedication.",
     footQuickLinks: "Quick Links",
     footServices: "Services",
@@ -419,11 +415,8 @@ export const translations: Record<'en' | 'de', any> = {
     cookieSettings: "Cookie-Einstellungen",
     
     // Redesign Keys
-    navHome: "Startseite",
-    navWhyChooseUs: "Warum wir",
     navGallery: "Galerie",
     navTestimonials: "Bewertungen",
-    navContact: "Kontakt",
     heroBadge: "Professionelle Reinigungs- & Umzugsdienste",
     heroTitleRedesign: "Wir reinigen.<br/>Wir ziehen um.<br/><span class='text-brandBlueLight'>Sie entspannen.</span>",
     heroSubRedesign: "Izzey Clean & Move bietet erstklassige Reinigungs- und Umzugsdienstleistungen mit Sorgfalt, Präzision und Zuverlässigkeit. Ihr Raum, unsere Verantwortung.",
@@ -472,7 +465,6 @@ export const translations: Record<'en' | 'de', any> = {
     test3Loc: "Hamburg, Deutschland",
     ctaTitleRedesign: "Bereit für ein sauberes Zuhause oder einen reibungslosen Umzug?",
     ctaSubRedesign: "Kontaktieren Sie uns noch heute und erleben Sie stressfreien Service.",
-    ctaBtn: "Kostenloses Angebot",
     footDescRedesign: "Wir bieten professionelle Reinigungs- und Umzugsdienstleistungen in ganz Deutschland mit Sorgfalt, Zuverlässigkeit und Engagement.",
     footQuickLinks: "Schnelllinks",
     footServices: "Dienstleistungen",
