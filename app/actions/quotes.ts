@@ -116,11 +116,38 @@ export async function createQuotation(data: any) {
     const grandTotal = subtotal + vatAmount;
 
     const quotation = await prisma.$transaction(async (tx) => {
+      let resolvedPropertyId = validatedData.propertyId;
+      if (!resolvedPropertyId || resolvedPropertyId === "") {
+        const firstProperty = await tx.property.findFirst({
+          where: { customerId: validatedData.customerId }
+        });
+        if (firstProperty) {
+          resolvedPropertyId = firstProperty.id;
+        } else {
+          const customer = await tx.customer.findUnique({
+            where: { id: validatedData.customerId }
+          });
+          if (!customer) {
+            throw new Error('Customer not found.');
+          }
+          const newProperty = await tx.property.create({
+            data: {
+              customerId: customer.id,
+              address: customer.address || 'Boxhagener Str. 119',
+              city: customer.city || 'Berlin',
+              postalCode: '10245',
+              country: customer.country || 'Germany',
+            }
+          });
+          resolvedPropertyId = newProperty.id;
+        }
+      }
+
       return tx.quotation.create({
         data: {
           quoteNumber,
           customerId: validatedData.customerId,
-          propertyId: validatedData.propertyId,
+          propertyId: resolvedPropertyId,
           date: validatedData.date,
           validUntil: validatedData.validUntil,
           status: validatedData.status,
@@ -182,11 +209,38 @@ export async function updateQuotation(id: string, data: any) {
         where: { quotationId: id },
       });
 
+      let resolvedPropertyId = validatedData.propertyId;
+      if (!resolvedPropertyId || resolvedPropertyId === "") {
+        const firstProperty = await tx.property.findFirst({
+          where: { customerId: validatedData.customerId }
+        });
+        if (firstProperty) {
+          resolvedPropertyId = firstProperty.id;
+        } else {
+          const customer = await tx.customer.findUnique({
+            where: { id: validatedData.customerId }
+          });
+          if (!customer) {
+            throw new Error('Customer not found.');
+          }
+          const newProperty = await tx.property.create({
+            data: {
+              customerId: customer.id,
+              address: customer.address || 'Boxhagener Str. 119',
+              city: customer.city || 'Berlin',
+              postalCode: '10245',
+              country: customer.country || 'Germany',
+            }
+          });
+          resolvedPropertyId = newProperty.id;
+        }
+      }
+
       return tx.quotation.update({
         where: { id },
         data: {
           customerId: validatedData.customerId,
-          propertyId: validatedData.propertyId,
+          propertyId: resolvedPropertyId,
           date: validatedData.date,
           validUntil: validatedData.validUntil,
           status: validatedData.status,

@@ -34,7 +34,7 @@ export const QuotationItemSchema = z.object({
 
 export const QuotationSchema = z.object({
   customerId: z.string().uuid(),
-  propertyId: z.string().uuid(),
+  propertyId: z.string().optional().nullable(),
   date: z.coerce.date().default(() => new Date()),
   validUntil: z.coerce.date(),
   status: z.nativeEnum(QuotationStatus).default(QuotationStatus.DRAFT),
