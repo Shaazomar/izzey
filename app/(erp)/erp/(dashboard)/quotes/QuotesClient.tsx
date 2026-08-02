@@ -104,7 +104,8 @@ export default function QuotesClient({ initialQuotes, customers }: QuotesClientP
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="no-print space-y-6">
       
       {/* Top Header & Fast Action Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
@@ -262,6 +263,7 @@ export default function QuotesClient({ initialQuotes, customers }: QuotesClientP
           </table>
         </div>
       </div>
+      </div>
 
       {/* Full-Screen Interactive Quotation Builder */}
       <QuotationBuilder
@@ -297,6 +299,6 @@ export default function QuotesClient({ initialQuotes, customers }: QuotesClientP
         }}
       />
 
-    </div>
+    </>
   );
 }

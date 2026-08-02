@@ -93,7 +93,8 @@ export default function InvoicesClient({ initialInvoices, customers }: InvoicesC
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="no-print space-y-6">
       
       {/* Top Header & Fast Action Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
@@ -253,6 +254,7 @@ export default function InvoicesClient({ initialInvoices, customers }: InvoicesC
           </table>
         </div>
       </div>
+      </div>
 
       {/* Full-Screen Interactive Invoice Builder */}
       <InvoiceBuilder
@@ -292,6 +294,6 @@ export default function InvoicesClient({ initialInvoices, customers }: InvoicesC
         }}
       />
 
-    </div>
+    </>
   );
 }
