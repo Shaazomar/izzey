@@ -274,3 +274,26 @@ model SystemSetting {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+enum EnquiryStatus {
+  PENDING
+  CONTACTED
+  CONVERTED
+  ARCHIVED
+}
+
+model Enquiry {
+  id        String        @id @default(uuid())
+  name      String
+  email     String
+  phone     String
+  address   String
+  service   String
+  date      String
+  time      String
+  status    EnquiryStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+

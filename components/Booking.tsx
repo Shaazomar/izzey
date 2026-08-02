@@ -62,15 +62,8 @@ export default function Booking() {
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    // Web3Forms is designed to be called directly from the client side.
-    // The access key is safe to be exposed as it only routes to your registered email.
-    const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || 
-                      process.env.VITE_WEB3FORMS_ACCESS_KEY || 
-                      "YOUR_WEB3FORMS_KEY_HERE";
-    formData.append('access_key', accessKey);
-
     try {
-      const response = await fetch('https://api.web3forms.com/submit', {
+      const response = await fetch('/api/booking', {
         method: 'POST',
         body: formData,
       });
@@ -87,7 +80,7 @@ export default function Booking() {
         }
       } else {
         const text = await response.text();
-        console.error('Non-JSON response received from Web3Forms:', text);
+        console.error('Non-JSON response received from booking API:', text);
         setStatus(t('msgError'));
       }
     } catch (error) {

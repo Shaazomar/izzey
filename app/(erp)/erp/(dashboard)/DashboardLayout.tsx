@@ -7,7 +7,8 @@ import {
   LayoutDashboard, FileText, FileCheck, Users, 
   CreditCard, Receipt, BarChart3, PieChart, Settings, LogOut, 
   Search, Menu, X, Bell, Plus, ChevronDown, ChevronRight, ChevronLeft,
-  Zap, Landmark, AreaChart, ToggleLeft, ToggleRight, Sparkles, Building2
+  Zap, Landmark, AreaChart, ToggleLeft, ToggleRight, Sparkles, Building2,
+  Mail
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -49,6 +50,7 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
     {
       title: 'SALES',
       items: [
+        { name: 'Enquiries', path: '/erp/enquiries', icon: Mail, roles: ['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT'] },
         { name: 'Quotations', path: '/erp/quotes', icon: FileText, roles: ['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT'] },
         { name: 'Invoices', path: '/erp/invoices', icon: FileCheck, roles: ['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT'] },
         { name: 'Customers', path: '/erp/customers', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT'] },
