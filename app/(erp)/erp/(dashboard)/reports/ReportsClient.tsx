@@ -60,10 +60,10 @@ export default function ReportsClient({ initialSummary, initialJobsAnalytics, mo
       csvRows.push([`Range: ${startDate} to ${endDate}`]);
       csvRows.push([]);
       csvRows.push(['Metric Title', 'Value (€)']);
-      csvRows.push(['Official Revenue', Number(summary.revenue).toFixed(2)]);
-      csvRows.push(['Official Subtotal', Number(summary.subtotalRevenue).toFixed(2)]);
+      csvRows.push(['Official Gross Revenue (incl. VAT)', Number(summary.revenue).toFixed(2)]);
+      csvRows.push(['Official Net Revenue (subtotal)', Number(summary.subtotalRevenue).toFixed(2)]);
       csvRows.push(['VAT Tax Collected', Number(summary.vatCollected).toFixed(2)]);
-      csvRows.push(['VAT Expenses', Number(summary.expenses).toFixed(2)]);
+      csvRows.push(['Official Expenses', Number(summary.expenses).toFixed(2)]);
       csvRows.push(['Official Net Profit', Number(summary.netProfit).toFixed(2)]);
     } else {
       filename = `Management_Analytics_Report_${startDate}_to_${endDate}.csv`;
@@ -71,7 +71,8 @@ export default function ReportsClient({ initialSummary, initialJobsAnalytics, mo
       csvRows.push([`Range: ${startDate} to ${endDate}`]);
       csvRows.push([]);
       csvRows.push(['Metric Title', 'Value (€)']);
-      csvRows.push(['Actual Invoice Revenue', Number(summary.revenue).toFixed(2)]);
+      csvRows.push(['Actual Gross Revenue (incl. VAT)', Number(summary.revenue).toFixed(2)]);
+      csvRows.push(['Actual Net Revenue (subtotal)', Number(summary.subtotalRevenue).toFixed(2)]);
       csvRows.push(['Real Labour cost', Number(summary.realLabourCost).toFixed(2)]);
       csvRows.push(['Materials Cost', Number(summary.materialCost).toFixed(2)]);
       csvRows.push(['Commissions Paid', Number(summary.commission).toFixed(2)]);
@@ -140,8 +141,12 @@ export default function ReportsClient({ initialSummary, initialJobsAnalytics, mo
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-[#EAE8E2] border border-black/5 p-6 rounded-3xl shadow-sm space-y-2">
             <p className="text-[10px] font-bold font-mono text-dark/40 uppercase tracking-widest">OFFICIAL REVENUE</p>
-            <p className="text-3xl font-heading font-black text-dark">€{Number(summary.revenue).toFixed(2)}</p>
-            <p className="text-[10px] font-mono text-dark/50">VAT Included: €{Number(summary.vatCollected).toFixed(2)}</p>
+            <p className="text-3xl font-heading font-black text-dark">
+              €{Number(summary.subtotalRevenue).toFixed(2)} <span className="text-xs font-mono text-dark/50 font-normal">(Net)</span>
+            </p>
+            <p className="text-[10px] font-mono text-dark/50">
+              Gross (incl. VAT): €{Number(summary.revenue).toFixed(2)} | VAT: €{Number(summary.vatCollected).toFixed(2)}
+            </p>
           </div>
 
           <div className="bg-[#EAE8E2] border border-black/5 p-6 rounded-3xl shadow-sm space-y-2">
@@ -165,7 +170,10 @@ export default function ReportsClient({ initialSummary, initialJobsAnalytics, mo
             
             <div className="bg-[#EAE8E2] border border-black/5 p-6 rounded-3xl shadow-sm space-y-2">
               <p className="text-[10px] font-bold font-mono text-dark/40 uppercase tracking-widest">ACTUAL REVENUE</p>
-              <p className="text-2xl font-heading font-black text-dark">€{Number(summary.revenue).toFixed(2)}</p>
+              <p className="text-2xl font-heading font-black text-dark">
+                €{Number(summary.subtotalRevenue).toFixed(2)} <span className="text-xs font-mono text-dark/50 font-normal">(Net)</span>
+              </p>
+              <p className="text-[10px] font-mono text-dark/50">Gross: €{Number(summary.revenue).toFixed(2)}</p>
             </div>
 
             <div className="bg-[#EAE8E2] border border-black/5 p-6 rounded-3xl shadow-sm space-y-2">

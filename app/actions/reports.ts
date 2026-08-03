@@ -56,7 +56,7 @@ export async function getFinancialSummary(startDate: Date, endDate: Date, mode: 
 
     // OFFICIAL Mode Calculations (Mode 1)
     if (mode === 'OFFICIAL') {
-      const netProfit = totalInvoiceRevenue - totalExpenses;
+      const netProfit = subtotalRevenue - totalExpenses;
       return {
         success: true,
         data: {
@@ -92,8 +92,8 @@ export async function getFinancialSummary(startDate: Date, endDate: Date, mode: 
 
     const totalJobLevelCosts = realLabourCost + bonuses + commission + materialCost + hiddenCosts;
     const totalManagementOutflow = totalExpenses + totalJobLevelCosts;
-    const managementNetProfit = totalInvoiceRevenue - totalManagementOutflow;
-    const profitMargin = totalInvoiceRevenue > 0 ? (managementNetProfit / totalInvoiceRevenue) * 100 : 0;
+    const managementNetProfit = subtotalRevenue - totalManagementOutflow;
+    const profitMargin = subtotalRevenue > 0 ? (managementNetProfit / subtotalRevenue) * 100 : 0;
 
     return {
       success: true,
@@ -139,7 +139,6 @@ export async function getJobsAnalytics(startDate: Date, endDate: Date) {
     });
 
     const jobsReport = jobs.map((job) => {
-      const revenue = Number(job.quotation?.grandTotal || 0);
       const subtotal = Number(job.quotation?.subtotal || 0);
       const labour = Number(job.managementCost?.realLabourCost || 0);
       const bonuses = Number(job.managementCost?.bonuses || 0);
@@ -148,8 +147,8 @@ export async function getJobsAnalytics(startDate: Date, endDate: Date) {
       const hidden = Number(job.managementCost?.hiddenCosts || 0);
       
       const totalCost = labour + bonuses + comm + material + hidden;
-      const profit = revenue - totalCost;
-      const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+      const profit = subtotal - totalCost;
+      const margin = subtotal > 0 ? (profit / subtotal) * 100 : 0;
 
       return {
         id: job.id,
@@ -157,7 +156,7 @@ export async function getJobsAnalytics(startDate: Date, endDate: Date) {
         customerName: job.quotation?.customer.name || 'N/A',
         companyName: job.quotation?.customer.companyName || null,
         date: job.startDate,
-        revenue,
+        revenue: subtotal,
         subtotal,
         labour,
         bonuses,

@@ -7,7 +7,7 @@ import {
   FileCheck, ArrowRight, UserPlus, Save, Printer, ArrowUp, ArrowDown,
   Minus
 } from 'lucide-react';
-import { createInvoice } from '@/app/actions/invoices';
+import { createInvoice, updateInvoice } from '@/app/actions/invoices';
 import BaseTemplate, { DocumentData } from '../document/BaseTemplate';
 import CustomerModal from './CustomerModal';
 
@@ -348,7 +348,12 @@ export default function InvoiceBuilder({
       notes,
     };
 
-    const res = await createInvoice(payload);
+    let res;
+    if (invoiceToEdit?.id) {
+      res = await updateInvoice(invoiceToEdit.id, payload);
+    } else {
+      res = await createInvoice(payload);
+    }
     setLoading(false);
 
     if (res.success && res.data) {
@@ -433,12 +438,12 @@ export default function InvoiceBuilder({
 
           <button
             type="button"
-            onClick={() => handleSave('DRAFT')}
+            onClick={() => handleSave()}
             disabled={loading}
             className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs"
           >
             <Save className="w-4 h-4 text-slate-600" />
-            <span>Save Draft</span>
+            <span>Save</span>
           </button>
 
           <button
@@ -631,6 +636,22 @@ export default function InvoiceBuilder({
                   <option value="both">German + English</option>
                   <option value="de">German Only</option>
                   <option value="en">English Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-emerald-700 focus:outline-none"
+                >
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="SENT">SENT</option>
+                  <option value="PAID">PAID</option>
+                  <option value="PARTIALLY_PAID">PARTIALLY PAID</option>
+                  <option value="OVERDUE">OVERDUE</option>
+                  <option value="CANCELLED">CANCELLED</option>
                 </select>
               </div>
             </div>

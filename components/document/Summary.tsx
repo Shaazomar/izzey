@@ -37,9 +37,9 @@ export default function Summary({
   };
 
   const getVatLabel = () => {
-    if (language === 'de') return 'MEHRWERTSTEUER (19%)';
-    if (language === 'en') return 'VAT (19%)';
-    return 'MEHRWERTSTEUER (19%) / VAT';
+    if (language === 'de') return 'MEHRWERTSTEUER';
+    if (language === 'en') return 'VAT';
+    return 'MEHRWERTSTEUER / VAT';
   };
 
   const getGrandTotalLabel = () => {

@@ -43,15 +43,27 @@ export default function ItemsTable({
   };
 
   const getTaxHeader = () => {
-    if (language === 'de') return 'UST.';
-    if (language === 'en') return 'TAX';
-    return 'UST. / TAX';
+    if (language === 'de') return 'UST. %';
+    if (language === 'en') return 'TAX %';
+    return 'UST. % / TAX %';
+  };
+
+  const getTaxValHeader = () => {
+    if (language === 'de') return 'UST. BETRAG';
+    if (language === 'en') return 'TAX AMT.';
+    return 'UST. BETRAG / TAX AMT.';
   };
 
   const getPriceHeader = () => {
-    if (language === 'de') return 'PREIS (NETTO)';
-    if (language === 'en') return 'PRICE (NET)';
-    return 'PREIS (NETTO) / PRICE (NET)';
+    if (language === 'de') return 'NETTO';
+    if (language === 'en') return 'NET';
+    return 'NETTO / NET';
+  };
+
+  const getGrossPriceHeader = () => {
+    if (language === 'de') return 'BRUTTO';
+    if (language === 'en') return 'GROSS';
+    return 'BRUTTO / GROSS';
   };
 
   return (
@@ -61,8 +73,10 @@ export default function ItemsTable({
           <tr className="bg-[#2E4036] text-white text-[10px] font-mono uppercase tracking-wider">
             <th className="py-2 px-4 font-bold text-center w-12">{getPosHeader()}</th>
             <th className="py-2 px-4 font-bold">{getDescHeader()}</th>
-            <th className="py-2 px-4 font-bold text-center w-24">{getTaxHeader()}</th>
-            <th className="py-2 px-4 font-bold text-right w-36">{getPriceHeader()}</th>
+            <th className="py-2 px-4 font-bold text-center w-20">{getTaxHeader()}</th>
+            <th className="py-2 px-4 font-bold text-right w-28">{getTaxValHeader()}</th>
+            <th className="py-2 px-4 font-bold text-right w-28">{getPriceHeader()}</th>
+            <th className="py-2 px-4 font-bold text-right w-28">{getGrossPriceHeader()}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200/60 font-mono text-[11px]">
@@ -71,6 +85,8 @@ export default function ItemsTable({
             const itemSubtotal = item.quantity * item.unitPrice;
             const discountAmount = itemSubtotal * (item.discount / 100);
             const lineTotalNet = item.total || (itemSubtotal - discountAmount);
+            const lineVatVal = lineTotalNet * (item.vatPercent / 100);
+            const lineTotalGross = lineTotalNet + lineVatVal;
 
             return (
               <tr 
@@ -94,14 +110,24 @@ export default function ItemsTable({
                   )}
                 </td>
 
-                {/* Tax / USt. */}
+                {/* Tax / USt. % */}
                 <td className="py-1.5 px-4 text-center font-bold text-slate-700 text-xs">
                   {item.vatPercent}%
+                </td>
+
+                {/* Tax Value */}
+                <td className="py-1.5 px-4 text-right text-slate-700 text-xs">
+                  {formatCurrency(lineVatVal)}
                 </td>
 
                 {/* Net Price */}
                 <td className="py-1.5 px-4 text-right font-bold text-slate-900 text-xs">
                   {formatCurrency(lineTotalNet)}
+                </td>
+
+                {/* Gross Price */}
+                <td className="py-1.5 px-4 text-right font-bold text-slate-900 text-xs">
+                  {formatCurrency(lineTotalGross)}
                 </td>
               </tr>
             );
@@ -109,7 +135,7 @@ export default function ItemsTable({
 
           {items.length === 0 && (
             <tr>
-              <td colSpan={4} className="py-8 text-center text-slate-400 font-mono text-xs">
+              <td colSpan={6} className="py-8 text-center text-slate-400 font-mono text-xs">
                 Keine Positionen hinzugefügt.
               </td>
             </tr>

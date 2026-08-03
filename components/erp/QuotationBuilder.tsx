@@ -463,12 +463,12 @@ export default function QuotationBuilder({
 
           <button
             type="button"
-            onClick={() => handleSave('DRAFT')}
+            onClick={() => handleSave()}
             disabled={loading}
             className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs"
           >
             <Save className="w-4 h-4 text-slate-600" />
-            <span>Save Draft</span>
+            <span>Save</span>
           </button>
 
           <button
@@ -673,6 +673,22 @@ export default function QuotationBuilder({
                   <option value="both">German + English</option>
                   <option value="de">German Only</option>
                   <option value="en">English Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-blue-700 focus:outline-none"
+                >
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="SENT">SENT</option>
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="REJECTED">REJECTED</option>
+                  <option value="EXPIRED">EXPIRED</option>
+                  <option value="CONVERTED">CONVERTED</option>
                 </select>
               </div>
             </div>
