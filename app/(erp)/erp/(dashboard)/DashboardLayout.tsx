@@ -92,7 +92,7 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar space-y-6">
           
           {/* Logo & Brand Header */}
-          <div className="flex items-center justify-between px-2 pt-2">
+          <div className={`flex items-center ${isCollapsed ? 'flex-col gap-3 justify-center' : 'justify-between px-2'} pt-2`}>
             {!isCollapsed ? (
               <div className="flex items-center gap-3">
                 <Image 
@@ -117,16 +117,18 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
               </div>
             )}
 
-            {/* Collapse Toggle Button */}
-            {!isCollapsed && (
-              <button
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                title="Collapse Sidebar"
-              >
+            {/* Collapse/Expand Toggle Button */}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
                 <ChevronLeft className="w-4 h-4" />
-              </button>
-            )}
+              )}
+            </button>
           </div>
 
           {/* Navigation Sections */}
