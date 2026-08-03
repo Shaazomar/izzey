@@ -7,6 +7,7 @@ interface SummaryProps {
   total: number;
   currency?: string;
   language?: 'de' | 'en' | 'both';
+  vatPercent?: number;
 }
 
 export default function Summary({
@@ -16,6 +17,7 @@ export default function Summary({
   total,
   currency = 'EUR',
   language = 'both',
+  vatPercent = 19,
 }: SummaryProps) {
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -37,9 +39,10 @@ export default function Summary({
   };
 
   const getVatLabel = () => {
-    if (language === 'de') return 'MEHRWERTSTEUER';
-    if (language === 'en') return 'VAT';
-    return 'MEHRWERTSTEUER / VAT';
+    const pct = ` (${vatPercent}%)`;
+    if (language === 'de') return `MEHRWERTSTEUER${pct}`;
+    if (language === 'en') return `VAT${pct}`;
+    return `MEHRWERTSTEUER${pct} / VAT${pct}`;
   };
 
   const getGrandTotalLabel = () => {

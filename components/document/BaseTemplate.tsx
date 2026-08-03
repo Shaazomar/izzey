@@ -105,6 +105,7 @@ export default function BaseTemplate({ data }: BaseTemplateProps) {
               total={data.total}
               currency={data.currency}
               language={language}
+              vatPercent={data.items[0]?.vatPercent}
             />
           </div>
         </div>
