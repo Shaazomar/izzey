@@ -133,9 +133,9 @@ export async function createQuotation(data: any) {
           const newProperty = await tx.property.create({
             data: {
               customerId: customer.id,
-              address: customer.address || 'Boxhagener Str. 119',
+              address: customer.address || 'Alt-Moabit 58',
               city: customer.city || 'Berlin',
-              postalCode: '10245',
+              postalCode: '10555',
               country: customer.country || 'Germany',
             }
           });
@@ -228,9 +228,9 @@ export async function updateQuotation(id: string, data: any) {
           const newProperty = await tx.property.create({
             data: {
               customerId: customer.id,
-              address: customer.address || 'Boxhagener Str. 119',
+              address: customer.address || 'Alt-Moabit 58',
               city: customer.city || 'Berlin',
-              postalCode: '10245',
+              postalCode: '10555',
               country: customer.country || 'Germany',
             }
           });

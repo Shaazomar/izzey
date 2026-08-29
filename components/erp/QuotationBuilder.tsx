@@ -399,7 +399,7 @@ export default function QuotationBuilder({
     currency,
     company: {
       name: 'IZZ & HAMEED Dienstleistungen UG',
-      address: 'Boxhagener Str. 119\n10245 Berlin, Germany',
+      address: 'Alt-Moabit 58\n10555 Berlin, Germany',
       phone: '+49 (0) 30 1234 5678',
       email: 'info@izzey.de',
       website: 'www.izzey.de',

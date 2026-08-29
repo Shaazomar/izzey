@@ -30,14 +30,14 @@ export default function CustomerModal({ isOpen, onClose, onSuccess }: CustomerMo
       phone: data.phone as string,
       companyName: (data.companyName as string) || undefined,
       notes: (data.notes as string) || undefined,
-      address: (data.address as string) || 'Boxhagener Str. 119',
+      address: (data.address as string) || 'Alt-Moabit 58',
       city: (data.city as string) || 'Berlin',
       country: (data.country as string) || 'Germany',
       properties: [
         {
-          address: (data.address as string) || 'Boxhagener Str. 119',
+          address: (data.address as string) || 'Alt-Moabit 58',
           city: (data.city as string) || 'Berlin',
-          postalCode: (data.postalCode as string) || '10245',
+          postalCode: (data.postalCode as string) || '10555',
           country: (data.country as string) || 'Germany',
         },
       ],
@@ -131,7 +131,7 @@ export default function CustomerModal({ isOpen, onClose, onSuccess }: CustomerMo
               name="address"
               type="text"
               required
-              defaultValue="Boxhagener Str. 119"
+              defaultValue="Alt-Moabit 58"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:bg-white focus:border-[#2E4036] font-bold transition-all"
             />
           </div>
@@ -151,7 +151,7 @@ export default function CustomerModal({ isOpen, onClose, onSuccess }: CustomerMo
               <input
                 name="postalCode"
                 type="text"
-                defaultValue="10245"
+                defaultValue="10555"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white focus:border-[#2E4036] font-bold transition-all"
               />
             </div>

@@ -70,7 +70,7 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
           <p className="space-y-0.5">
             <strong>IZZ & HAMEED Dienstleistungen UG</strong><br />
             Geschäftsführer: Hameed Khan, Izzatullah Safi<br />
-            Boxhagener Str. 119, 10245 Berlin<br />
+            Alt-Moabit 58, 10555 Berlin<br />
             IBAN: DE89 5012 0520 1234 5678 90<br />
             BIC: COBADEFFXXX
           </p>

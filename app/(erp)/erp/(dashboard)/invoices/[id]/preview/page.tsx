@@ -26,7 +26,7 @@ export default async function InvoicePreviewPage({ params }: InvoicePreviewPageP
 
   const company = {
     name: settings?.companyName || 'Izzey Clean & Move',
-    address: 'Boxhagener Str. 119\n10245 Berlin, Germany',
+    address: 'Alt-Moabit 58\n10555 Berlin, Germany',
     phone: '+49 176 2170 9991',
     email: 'info@izzey.de',
     website: 'izzeycleanmove.com',

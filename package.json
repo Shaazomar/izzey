@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:clean": "node prisma/clean.js"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
