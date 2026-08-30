@@ -374,7 +374,7 @@ export default function InvoiceBuilder({
     language,
     currency,
     company: {
-      name: 'IZZ & HAMEED Dienstleistungen UG',
+      name: 'Izz & Hameed Dienstleistung, (haftungsbeschränkt)',
       address: 'Alt-Moabit 58\n10555 Berlin, Germany',
       phone: '+49 (0) 30 1234 5678',
       email: 'info@izzey.de',

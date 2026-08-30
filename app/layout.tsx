@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     'Complete Moving, Cleaning & Property Services in Berlin. We specialize in safe relocations, hotel & office cleaning, waste disposal, and property handovers.',
   keywords:
     'Berlin moving company, Umzugsunternehmen Berlin, cleaning services, Reinigung Berlin, hotel cleaning, office cleaning, transport service, relocation, Bauendreinigung, Glasreinigung, Izzey clean & move',
-  authors: [{ name: 'IZZ & HAMEED Dienstleistungen UG' }],
+  authors: [{ name: 'Izz & Hameed Dienstleistung, (haftungsbeschränkt)' }],
   robots: {
     index: true,
     follow: true,

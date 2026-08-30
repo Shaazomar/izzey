@@ -68,10 +68,10 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
             {getCol3Heading()}
           </h5>
           <p className="space-y-0.5">
-            <strong>IZZ & HAMEED Dienstleistungen UG</strong><br />
+            <strong>Izz & Hameed Dienstleistung, (haftungsbeschränkt)</strong><br />
             Geschäftsführer: Hameed Khan, Izzatullah Safi<br />
             Alt-Moabit 58, 10555 Berlin<br />
-            IBAN: DE89 5012 0520 1234 5678 90<br />
+            IBAN: DE08 1005 0000 0191 3380 36<br />
             BIC: COBADEFFXXX
           </p>
         </div>

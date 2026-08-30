@@ -17,7 +17,7 @@ export const translations: Record<'en' | 'de', any> = {
     // Hero
     heroTitle: "Professional Cleaning & Moving Made Simple.",
     heroSub: "Complete Moving, Cleaning & Property Services in Berlin — one team handles everything efficiently and professionally.",
-    heroIntro: "At Izzey Clean & Move – A Service by IZZ & HAMEED Dienstleistungen UG, we combine moving, cleaning, transport, furniture setup, waste removal, and property support into one seamless service.",
+    heroIntro: "At Izzey Clean & Move – A Service by Izz & Hameed Dienstleistung, (haftungsbeschränkt), we combine moving, cleaning, transport, furniture setup, waste removal, and property support into one seamless service.",
     btnQuote: "Get Free Quote",
     btnWhatsApp: "WhatsApp Now",
 
@@ -72,7 +72,7 @@ export const translations: Record<'en' | 'de', any> = {
 
     // About Us
     aboutTitle: "About Us",
-    aboutMain: "Izzey Clean & Move is a growing Berlin-based service brand operated by IZZ & HAMEED Dienstleistungen UG.",
+    aboutMain: "Izzey Clean & Move is a growing Berlin-based service brand operated by Izz & Hameed Dienstleistung, (haftungsbeschränkt).",
     aboutDesc: "We specialize in complete moving, cleaning, transport, furniture, waste disposal, and property support services. Our goal is to simplify your life by providing all-in-one solutions with reliability, efficiency, and professionalism.",
     
     // Booking / Contact
@@ -185,7 +185,7 @@ export const translations: Record<'en' | 'de', any> = {
 
     // Impressum
     impressumTitle: "Impressum",
-    impressumContent: "Information according to § 5 TMG\n\nIzz & Hameed Dienstleistungs UG (haftungsbeschränkt)\nAlt Moabit 58\n10555 Berlin\nGermany\n\nRepresented by the Managing Director:\nIzuddin Arfaz\n\nCommercial Register:\nAmtsgericht Charlottenburg (Berlin)\nHRB 263920 B\n\nContact:\nEmail: info@izzey.de\nPhone: +49 176 2170 9991\n\nVAT ID:\nCurrently no VAT identification number available.\n\nResponsible for the content according to § 18 Abs. 2 MStV:\nIzuddin Arfaz\nAlt Moabit 58\n10555 Berlin\nGermany",
+    impressumContent: "Information according to § 5 TMG\n\nIzz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58\n10555 Berlin\nGermany\n\nRepresented by the Managing Director:\nIzuddin Arfaz\n\nCommercial Register:\nAmtsgericht Charlottenburg (Berlin)\nHRB 263920 B\n\nContact:\nEmail: info@izzey.de\nPhone: +49 176 2170 9991\n\nVAT ID:\nCurrently no VAT identification number available.\n\nResponsible for the content according to § 18 Abs. 2 MStV:\nIzuddin Arfaz\nAlt Moabit 58\n10555 Berlin\nGermany",
     
     // Privacy Policy
     privacyTitle: "Privacy Policy",
@@ -196,7 +196,7 @@ export const translations: Record<'en' | 'de', any> = {
       },
       {
         title: "2. Controller",
-        content: "Izz & Hameed Dienstleistungs UG (haftungsbeschränkt)\nAlt Moabit 58, 10555 Berlin, Germany\nEmail: info@izzey.de\nPhone: +49 176 2170 9991\n\nManaging Director: Izuddin Arfaz"
+        content: "Izz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58, 10555 Berlin, Germany\nEmail: info@izzey.de\nPhone: +49 176 2170 9991\n\nManaging Director: Izuddin Arfaz"
       },
       {
         title: "3. Data We Collect",
@@ -245,7 +245,7 @@ export const translations: Record<'en' | 'de', any> = {
     termsSections: [
       {
         title: "1. Scope",
-        content: "Izz & Hameed Dienstleistungs UG (haftungsbeschränkt) provides:\n- home cleaning\n- office cleaning\n- deep cleaning\n- moving services\n- packing / unpacking\n- furniture assembly / disassembly\n- storage services\n- junk removal / disposal"
+        content: "Izz & Hameed Dienstleistung, (haftungsbeschränkt) provides:\n- home cleaning\n- office cleaning\n- deep cleaning\n- moving services\n- packing / unpacking\n- furniture assembly / disassembly\n- storage services\n- junk removal / disposal"
       },
       {
         title: "2. Quotes",
@@ -304,7 +304,7 @@ export const translations: Record<'en' | 'de', any> = {
     // Hero
     heroTitle: "Professionelle Reinigung & Umzüge leicht gemacht.",
     heroSub: "Komplette Umzugs-, Reinigungs- & Immobilienservices in Berlin — ein Team erledigt alles effizient und professionell.",
-    heroIntro: "Bei Izzey Clean & Move – Ein Service der IZZ & HAMEED Dienstleistungen UG – vereinen wir Umzug, Reinigung, Transport, Möbelmontage, Entsorgung und Objektbetreuung in einem nahtlosen Service.",
+    heroIntro: "Bei Izzey Clean & Move – Ein Service der Izz & Hameed Dienstleistung, (haftungsbeschränkt) – vereinen wir Umzug, Reinigung, Transport, Möbelmontage, Entsorgung und Objektbetreuung in einem nahtlosen Service.",
     btnQuote: "Kostenloses Angebot",
     btnWhatsApp: "WhatsApp Kontakt",
 
@@ -359,7 +359,7 @@ export const translations: Record<'en' | 'de', any> = {
 
     // About Us
     aboutTitle: "Über Uns",
-    aboutMain: "Izzey Clean & Move is eine aufstrebende Servicemarke in Berlin, betrieben von der IZZ & HAMEED Dienstleistungen UG.",
+    aboutMain: "Izzey Clean & Move is eine aufstrebende Servicemarke in Berlin, betrieben von der Izz & Hameed Dienstleistung, (haftungsbeschränkt).",
     aboutDesc: "Wir sind spezialisiert auf Umzug, Reinigung, Transport, Möbel, Entsorgung und Objektbetreuung. Unser Ziel ist es, Ihr Leben durch zuverlässige, effiziente und professionelle Komplettlösungen zu vereinfachen.",
     
     // Booking / Contact
@@ -472,7 +472,7 @@ export const translations: Record<'en' | 'de', any> = {
 
     // Impressum
     impressumTitle: "Impressum",
-    impressumContent: "Angaben gemäß § 5 TMG\n\nIzz & Hameed Dienstleistungs UG (haftungsbeschränkt)\nAlt Moabit 58\n10555 Berlin\nGermany\n\nVertreten durch den Geschäftsführer:\nIzuddin Arfaz\n\nHandelsregister:\nAmtsgericht Charlottenburg (Berlin)\nHRB 263920 B\n\nKontakt:\nE-Mail: info@izzey.de\nTelefon: +49 176 2170 9991\n\nUmsatzsteuer-ID:\nDerzeit keine Umsatzsteuer-Identifikationsnummer vorhanden.\n\nVerantwortlich für den Inhalt nach § 18 Abs. 2 MStV:\nIzuddin Arfaz\nAlt Moabit 58\n10555 Berlin\nGermany",
+    impressumContent: "Angaben gemäß § 5 TMG\n\nIzz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58\n10555 Berlin\nGermany\n\nVertreten durch den Geschäftsführer:\nIzuddin Arfaz\n\nHandelsregister:\nAmtsgericht Charlottenburg (Berlin)\nHRB 263920 B\n\nKontakt:\nE-Mail: info@izzey.de\nTelefon: +49 176 2170 9991\n\nUmsatzsteuer-ID:\nDerzeit keine Umsatzsteuer-Identifikationsnummer vorhanden.\n\nVerantwortlich für den Inhalt nach § 18 Abs. 2 MStV:\nIzuddin Arfaz\nAlt Moabit 58\n10555 Berlin\nGermany",
 
     // Privacy Policy
     privacyTitle: "Datenschutzerklärung",
@@ -483,7 +483,7 @@ export const translations: Record<'en' | 'de', any> = {
       },
       {
         title: "2. Verantwortlicher",
-        content: "Izz & Hameed Dienstleistungs UG (haftungsbeschränkt)\nAlt Moabit 58, 10555 Berlin, Deutschland\nE-Mail: info@izzey.de\nTelefon: +49 176 2170 9991\n\nGeschäftsführer: Izuddin Arfaz"
+        content: "Izz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58, 10555 Berlin, Deutschland\nE-Mail: info@izzey.de\nTelefon: +49 176 2170 9991\n\nGeschäftsführer: Izuddin Arfaz"
       },
       {
         title: "3. Daten, die wir erfassen",
@@ -532,7 +532,7 @@ export const translations: Record<'en' | 'de', any> = {
     termsSections: [
       {
         title: "1. Geltungsbereich",
-        content: "Izz & Hameed Dienstleistungs UG (haftungsbeschränkt) bietet an:\n- Haushaltsreinigung\n- Büroreinigung\n- Grundreinigung\n- Umzugsdienstleistungen\n- Ein- / Auspackservice\n- Möbelmontage / -demontage\n- Einlagerungsdienste\n- Sperrmüllentsorgung"
+        content: "Izz & Hameed Dienstleistung, (haftungsbeschränkt) bietet an:\n- Haushaltsreinigung\n- Büroreinigung\n- Grundreinigung\n- Umzugsdienstleistungen\n- Ein- / Auspackservice\n- Möbelmontage / -demontage\n- Einlagerungsdienste\n- Sperrmüllentsorgung"
       },
       {
         title: "2. Angebote",
