@@ -185,7 +185,7 @@ export const translations: Record<'en' | 'de', any> = {
 
     // Impressum
     impressumTitle: "Impressum",
-    impressumContent: "Information according to § 5 TMG\n\nIzz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58\n10555 Berlin\nGermany\n\nRepresented by the Managing Director:\nIzuddin Arfaz\n\nCommercial Register:\nAmtsgericht Charlottenburg (Berlin)\nHRB 263920 B\n\nContact:\nEmail: info@izzey.de\nPhone: +49 176 2170 9991\n\nVAT ID:\nCurrently no VAT identification number available.\n\nResponsible for the content according to § 18 Abs. 2 MStV:\nIzuddin Arfaz\nAlt Moabit 58\n10555 Berlin\nGermany",
+    impressumContent: "Information according to § 5 TMG\n\nIzz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58\n10555 Berlin\nGermany\n\nRepresented by the Managing Directors:\nNehal Hameed, Izuddin Arfaz\n\nCommercial Register:\nAmtsgericht Charlottenburg (Berlin)\nHRB 263920 B\n\nContact:\nEmail: info@izzey.de\nPhone: +49 176 2170 9991\n\nVAT ID:\nCurrently no VAT identification number available.\n\nResponsible for the content according to § 18 Abs. 2 MStV:\nNehal Hameed, Izuddin Arfaz\nAlt Moabit 58\n10555 Berlin\nGermany",
     
     // Privacy Policy
     privacyTitle: "Privacy Policy",
@@ -196,7 +196,7 @@ export const translations: Record<'en' | 'de', any> = {
       },
       {
         title: "2. Controller",
-        content: "Izz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58, 10555 Berlin, Germany\nEmail: info@izzey.de\nPhone: +49 176 2170 9991\n\nManaging Director: Izuddin Arfaz"
+        content: "Izz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58, 10555 Berlin, Germany\nEmail: info@izzey.de\nPhone: +49 176 2170 9991\n\nManaging Directors: Nehal Hameed, Izuddin Arfaz"
       },
       {
         title: "3. Data We Collect",
@@ -472,7 +472,7 @@ export const translations: Record<'en' | 'de', any> = {
 
     // Impressum
     impressumTitle: "Impressum",
-    impressumContent: "Angaben gemäß § 5 TMG\n\nIzz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58\n10555 Berlin\nGermany\n\nVertreten durch den Geschäftsführer:\nIzuddin Arfaz\n\nHandelsregister:\nAmtsgericht Charlottenburg (Berlin)\nHRB 263920 B\n\nKontakt:\nE-Mail: info@izzey.de\nTelefon: +49 176 2170 9991\n\nUmsatzsteuer-ID:\nDerzeit keine Umsatzsteuer-Identifikationsnummer vorhanden.\n\nVerantwortlich für den Inhalt nach § 18 Abs. 2 MStV:\nIzuddin Arfaz\nAlt Moabit 58\n10555 Berlin\nGermany",
+    impressumContent: "Angaben gemäß § 5 TMG\n\nIzz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58\n10555 Berlin\nGermany\n\nVertreten durch die Geschäftsführer:\nNehal Hameed, Izuddin Arfaz\n\nHandelsregister:\nAmtsgericht Charlottenburg (Berlin)\nHRB 263920 B\n\nKontakt:\nE-Mail: info@izzey.de\nTelefon: +49 176 2170 9991\n\nUmsatzsteuer-ID:\nDerzeit keine Umsatzsteuer-Identifikationsnummer vorhanden.\n\nVerantwortlich für den Inhalt nach § 18 Abs. 2 MStV:\nNehal Hameed, Izuddin Arfaz\nAlt Moabit 58\n10555 Berlin\nGermany",
 
     // Privacy Policy
     privacyTitle: "Datenschutzerklärung",
@@ -483,7 +483,7 @@ export const translations: Record<'en' | 'de', any> = {
       },
       {
         title: "2. Verantwortlicher",
-        content: "Izz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58, 10555 Berlin, Deutschland\nE-Mail: info@izzey.de\nTelefon: +49 176 2170 9991\n\nGeschäftsführer: Izuddin Arfaz"
+        content: "Izz & Hameed Dienstleistung, (haftungsbeschränkt)\nAlt Moabit 58, 10555 Berlin, Deutschland\nE-Mail: info@izzey.de\nTelefon: +49 176 2170 9991\n\nGeschäftsführer: Nehal Hameed, Izuddin Arfaz"
       },
       {
         title: "3. Daten, die wir erfassen",

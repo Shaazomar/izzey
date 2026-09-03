@@ -69,10 +69,10 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
           </h5>
           <p className="space-y-0.5">
             <strong>Izz & Hameed Dienstleistung, (haftungsbeschränkt)</strong><br />
-            Geschäftsführer: Hameed Khan, Izzatullah Safi<br />
+            Geschäftsführer: Nehal Hameed, Izuddin Arfaz<br />
             Alt-Moabit 58, 10555 Berlin<br />
             IBAN: DE08 1005 0000 0191 3380 36<br />
-            BIC: COBADEFFXXX
+            BIC: BELADEBEXXX
           </p>
         </div>
       </div>
