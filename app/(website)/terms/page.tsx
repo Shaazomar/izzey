@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Terms of Service | Izzey clean & move',
   description: 'Read the terms and conditions of Izzey clean & move. We outline our service standards, pricing principles, client responsibilities, and cancellation frameworks.',
   alternates: {
-    canonical: 'https://izzeycleanmove.com/terms',
+    canonical: 'https://izzey.de/terms',
   },
 };
 

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Impressum | Izzey clean & move',
   description: 'Legal disclosure and contact information for Izz & Hameed Dienstleistung, (haftungsbeschränkt), operating the Izzey clean & move services in Berlin.',
   alternates: {
-    canonical: 'https://izzeycleanmove.com/impressum',
+    canonical: 'https://izzey.de/impressum',
   },
 };
 

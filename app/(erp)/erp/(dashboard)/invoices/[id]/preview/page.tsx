@@ -29,7 +29,7 @@ export default async function InvoicePreviewPage({ params }: InvoicePreviewPageP
     address: 'Alt-Moabit 58\n10555 Berlin, Germany',
     phone: '+49 176 2170 9991',
     email: 'info@izzey.de',
-    website: 'izzeycleanmove.com',
+    website: 'www.izzey.de',
     vatNumber: settings?.vatNumber || '1130 / 360 / 50274 steuerlich',
   };
 

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Privacy Policy | Izzey clean & move',
   description: 'Read the privacy policy of Izzey clean & move. Learn how we handle, collect, process, and protect your personal information in compliance with GDPR.',
   alternates: {
-    canonical: 'https://izzeycleanmove.com/privacy',
+    canonical: 'https://izzey.de/privacy',
   },
 };
 

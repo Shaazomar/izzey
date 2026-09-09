@@ -29,7 +29,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://izzeycleanmove.com'),
+  metadataBase: new URL('https://izzey.de'),
   title: 'Izzey clean & move | Professional Moving & Cleaning in Berlin',
   description:
     'Complete Moving, Cleaning & Property Services in Berlin. We specialize in safe relocations, hotel & office cleaning, waste disposal, and property handovers.',
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     description:
       'One team handles everything efficiently and professionally. Moving, cleaning, furniture setup, and property support in Berlin.',
     type: 'website',
-    url: 'https://izzeycleanmove.com/',
+    url: 'https://izzey.de/',
     images: [
       {
         url: '/hero-bg.png',
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     images: ['/hero-bg.png'],
   },
   alternates: {
-    canonical: 'https://izzeycleanmove.com/',
+    canonical: 'https://izzey.de/',
   },
 };
 

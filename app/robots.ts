@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: '/api/',
     },
-    sitemap: 'https://izzeycleanmove.com/sitemap.xml',
+    sitemap: 'https://izzey.de/sitemap.xml',
   };
 }
