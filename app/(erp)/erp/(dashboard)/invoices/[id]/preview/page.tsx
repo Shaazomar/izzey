@@ -30,7 +30,7 @@ export default async function InvoicePreviewPage({ params }: InvoicePreviewPageP
     phone: '+49 176 2170 9991',
     email: 'info@izzey.de',
     website: 'izzeycleanmove.com',
-    vatNumber: settings?.vatNumber || 'DE345678901',
+    vatNumber: settings?.vatNumber || '1130 / 360 / 50274 steuerlich',
   };
 
   const customer = {

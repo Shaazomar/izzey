@@ -67,7 +67,7 @@ export default function CompanySection({
           <p><span className="text-slate-400 font-bold uppercase mr-1">TEL:</span>{company.phone}</p>
           <p><span className="text-slate-400 font-bold uppercase mr-1">MAIL:</span>{company.email}</p>
           <p><span className="text-slate-400 font-bold uppercase mr-1">WEB:</span>{company.website}</p>
-          <p className="pt-1"><span className="text-slate-400 font-bold uppercase mr-1">USt-IdNr.:</span>{company.vatNumber}</p>
+          <p className="pt-1"><span className="text-slate-400 font-bold uppercase mr-1">Steuernummer:</span>{company.vatNumber || '1130 / 360 / 50274 steuerlich'}</p>
         </div>
       </div>
 

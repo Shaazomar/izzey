@@ -72,7 +72,8 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
             Geschäftsführer: Nehal Hameed, Izuddin Arfaz<br />
             Alt-Moabit 58, 10555 Berlin<br />
             IBAN: DE08 1005 0000 0191 3380 36<br />
-            BIC: BELADEBEXXX
+            BIC: BELADEBEXXX<br />
+            Steuernummer: 1130 / 360 / 50274 steuerlich
           </p>
         </div>
       </div>
