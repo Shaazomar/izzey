@@ -21,10 +21,10 @@ export interface DocumentItemData {
 export interface DocumentData {
   type: 'quotation' | 'invoice';
   number: string;
-  date: Date;
-  serviceDate?: Date;
-  dueDate?: Date;
-  validUntil?: Date;
+  date: Date | string;
+  serviceDate?: Date | string | null;
+  dueDate?: Date | string | null;
+  validUntil?: Date | string | null;
   language?: 'de' | 'en' | 'both';
   currency?: string;
   company: {

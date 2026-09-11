@@ -162,10 +162,10 @@ export default function QuotationBuilder({
   const [custPropertyAddress, setCustPropertyAddress] = useState('');
 
   // Quotation Config
-  const [quoteNumber, setQuoteNumber] = useState('Q-2026-0001');
-  const [date, setDate] = useState('');
-  const [serviceDate, setServiceDate] = useState('');
-  const [validUntil, setValidUntil] = useState('');
+  const [quoteNumber, setQuoteNumber] = useState(() => `Q-${new Date().getFullYear()}-0001`);
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [serviceDate, setServiceDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [validUntil, setValidUntil] = useState(() => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [currency, setCurrency] = useState('EUR');
   const [language, setLanguage] = useState<'de' | 'en' | 'both'>('both');
   const [notes, setNotes] = useState('');
@@ -625,7 +625,17 @@ export default function QuotationBuilder({
                 <input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setDate(newDate);
+                    if (newDate) {
+                      const d = new Date(newDate);
+                      if (!isNaN(d.getTime())) {
+                        const validDate = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
+                        setValidUntil(validDate.toISOString().split('T')[0]);
+                      }
+                    }
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
                 />
               </div>

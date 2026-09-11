@@ -44,8 +44,8 @@ export default function QuotationDrawer({
   // Form State
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
-  const [validUntil, setValidUntil] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [validUntil, setValidUntil] = useState(() => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<string>('DRAFT');
   const [items, setItems] = useState<QuoteItemInput[]>([
@@ -350,7 +350,17 @@ export default function QuotationDrawer({
                 <input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setDate(newDate);
+                    if (newDate) {
+                      const d = new Date(newDate);
+                      if (!isNaN(d.getTime())) {
+                        const validDate = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
+                        setValidUntil(validDate.toISOString().split('T')[0]);
+                      }
+                    }
+                  }}
                   className="w-full bg-[#EAE8E2] border border-black/10 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#102B6A]"
                 />
               </div>

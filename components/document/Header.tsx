@@ -4,10 +4,10 @@ import Image from 'next/image';
 interface HeaderProps {
   type: 'quotation' | 'invoice';
   number: string;
-  date: Date;
-  serviceDate?: Date;
-  validUntil?: Date;
-  dueDate?: Date;
+  date: Date | string | number;
+  serviceDate?: Date | string | number | null;
+  validUntil?: Date | string | number | null;
+  dueDate?: Date | string | number | null;
   language?: 'de' | 'en' | 'both';
 }
 
@@ -59,9 +59,11 @@ export default function Header({
     }
   };
 
-  const formatDate = (d?: Date) => {
+  const formatDate = (d?: Date | string | number | null) => {
     if (!d) return '—';
-    return new Date(d).toLocaleDateString('de-DE', {
+    const dateObj = typeof d === 'string' || typeof d === 'number' ? new Date(d) : d;
+    if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '—';
+    return dateObj.toLocaleDateString('de-DE', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

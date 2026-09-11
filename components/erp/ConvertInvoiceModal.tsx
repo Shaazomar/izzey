@@ -94,7 +94,17 @@ export default function ConvertInvoiceModal({ quote, isOpen, onClose, onSuccess 
               <input
                 type="date"
                 value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setIssueDate(newDate);
+                  if (newDate) {
+                    const d = new Date(newDate);
+                    if (!isNaN(d.getTime())) {
+                      const nextDue = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
+                      setDueDate(nextDue.toISOString().split('T')[0]);
+                    }
+                  }
+                }}
                 required
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:bg-white focus:border-[#2E4036]"
               />

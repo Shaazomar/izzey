@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, FileText, Download, Eye, RefreshCw, 
-  AlertCircle, Calendar, MapPin, Building, User, ChevronRight, Check
+  AlertCircle, CheckCircle2, Loader2, Calendar, MapPin, Building, User, Clock, X
 } from 'lucide-react';
 
 interface Person {
@@ -33,6 +33,41 @@ interface FormData {
   issuePlace: string;
 }
 
+interface JobStep {
+  step: string;
+  timestamp: string;
+  completed: boolean;
+}
+
+interface JobState {
+  id: string;
+  documentId: string;
+  templateName?: string;
+  status: 'QUEUED' | 'PROCESSING' | 'GENERATING' | 'VERIFYING' | 'COMPLETED' | 'FAILED';
+  progress: number;
+  stepMessage: string;
+  steps: JobStep[];
+  errorMessage?: string;
+  downloadUrl?: string;
+  previewUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+}
+
+interface HistoryRecord {
+  id: string;
+  documentId: string;
+  templateId: string;
+  templateName: string;
+  fileName: string;
+  fileSize: number;
+  status: string;
+  createdAt: string;
+  downloadUrl: string;
+  previewUrl: string;
+  customerName?: string;
+}
+
 const initialFormState: FormData = {
   wohnungsgeber: {
     name: 'Izz & Hameed Dienstleistung UG',
@@ -43,48 +78,107 @@ const initialFormState: FormData = {
   owner: {
     name: '',
   },
-  moveInDate: '',
+  moveInDate: new Date().toISOString().split('T')[0],
   property: {
-    street: '',
-    additionalInfo: '',
-    zip: '',
-    city: '',
+    street: 'Warschauer Straße 46',
+    additionalInfo: 'Hinterhaus 2 Etage C/O Shibal',
+    zip: '10234',
+    city: 'Berlin',
   },
-  persons: [{ lastName: '', firstName: '' }],
+  persons: [{ lastName: 'Chavan', firstName: 'Angelina Peter' }],
   issueDate: new Date().toISOString().split('T')[0],
   issuePlace: 'Berlin',
 };
 
 export default function DocumentGenerator() {
   const [formData, setFormData] = useState<FormData>(initialFormState);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [currentJob, setCurrentJob] = useState<JobState | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [success, setSuccess] = useState<boolean>(false);
+  
+  // History & Modal State
+  const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>('Document Preview');
 
-  // Clean up object URL when component unmounts
+  // Load history on mount
   useEffect(() => {
-    return () => {
-      if (pdfBlobUrl) {
-        URL.revokeObjectURL(pdfBlobUrl);
-      }
-    };
-  }, [pdfBlobUrl]);
+    fetchHistory();
+  }, []);
 
-  // Form validation
+  // Poll job status until COMPLETED or FAILED
+  useEffect(() => {
+    if (!currentJob || !isProcessing) return;
+
+    if (currentJob.status === 'COMPLETED' || currentJob.status === 'FAILED') {
+      setIsProcessing(false);
+      if (currentJob.status === 'COMPLETED') {
+        fetchHistory();
+      }
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/documents/jobs/${currentJob.id}`);
+        const data = await res.json();
+        if (data.success && data.job) {
+          setCurrentJob(data.job);
+          if (data.job.status === 'COMPLETED' || data.job.status === 'FAILED') {
+            setIsProcessing(false);
+            if (data.job.status === 'COMPLETED') {
+              fetchHistory();
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error polling job status:', err);
+      }
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, [currentJob, isProcessing]);
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('/api/documents/history');
+      const data = await res.json();
+      if (data.success && data.history) {
+        setHistory(data.history);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const deleteHistoryRecord = async (documentId: string) => {
+    try {
+      const res = await fetch(`/api/documents/history?documentId=${documentId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setHistory(prev => prev.filter(item => item.documentId !== documentId));
+      }
+    } catch (err) {
+      console.error('Failed to delete history record:', err);
+    }
+  };
+
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
     if (!formData.wohnungsgeber.name.trim()) errors['wohnungsgeber.name'] = 'Name / Firma is required';
-    if (!formData.wohnungsgeber.street.trim()) errors['wohnungsgeber.street'] = 'Straße, Haus-Nr. is required';
+    if (!formData.wohnungsgeber.street.trim()) errors['wohnungsgeber.street'] = 'Straße is required';
     if (!formData.wohnungsgeber.zip.trim()) errors['wohnungsgeber.zip'] = 'PLZ is required';
     if (!formData.wohnungsgeber.city.trim()) errors['wohnungsgeber.city'] = 'Ort is required';
     
     if (!formData.moveInDate) errors['moveInDate'] = 'Einzugsdatum is required';
     
-    if (!formData.property.street.trim()) errors['property.street'] = 'Straße, Haus-Nr. is required';
+    if (!formData.property.street.trim()) errors['property.street'] = 'Wohnung Straße is required';
     if (!formData.property.zip.trim()) errors['property.zip'] = 'PLZ is required';
     if (!formData.property.city.trim()) errors['property.city'] = 'Ort is required';
 
@@ -103,7 +197,6 @@ export default function DocumentGenerator() {
     return Object.keys(errors).length === 0;
   };
 
-  // Handles state changes for nested fields
   const handleNestedChange = (
     section: 'wohnungsgeber' | 'owner' | 'property',
     field: string,
@@ -116,7 +209,6 @@ export default function DocumentGenerator() {
         [field]: value,
       }
     }));
-    // Clear validation error if any
     const errKey = `${section}.${field}`;
     if (validationErrors[errKey]) {
       setValidationErrors(prev => {
@@ -127,7 +219,6 @@ export default function DocumentGenerator() {
     }
   };
 
-  // Person Table modifications
   const handlePersonChange = (idx: number, field: keyof Person, value: string) => {
     const updatedPersons = [...formData.persons];
     updatedPersons[idx][field] = value;
@@ -144,9 +235,8 @@ export default function DocumentGenerator() {
   };
 
   const addPerson = () => {
-    // Restrict adding more than 10 people (capping based on physical template rows)
-    if (formData.persons.length >= 10) {
-      setError('A maximum of 10 people can be added to fit the template layout.');
+    if (formData.persons.length >= 7) {
+      setError('Maximum 7 people allowed per document page.');
       return;
     }
     setFormData(prev => ({
@@ -166,29 +256,16 @@ export default function DocumentGenerator() {
     setError('');
   };
 
-  // Helper to generate filename based on names or dates
-  const getOutputFilename = (): string => {
-    const firstPerson = formData.persons[0];
-    if (firstPerson && firstPerson.lastName && firstPerson.firstName) {
-      const sanitizedLastName = firstPerson.lastName.replace(/[^a-zA-Z0-9]/g, '_');
-      const sanitizedFirstName = firstPerson.firstName.replace(/[^a-zA-Z0-9]/g, '_');
-      return `Wohnungsgeberbestaetigung_${sanitizedLastName}_${sanitizedFirstName}.pdf`;
-    }
-    const dateStr = formData.issueDate || new Date().toISOString().split('T')[0];
-    return `Wohnungsgeberbestaetigung_${dateStr}.pdf`;
-  };
-
-  // Generate PDF from API
-  const generateDocument = async (isDownloadAfter = false): Promise<Blob | null> => {
+  const handleStartGeneration = async () => {
     setError('');
-    setSuccess(false);
+    setCurrentJob(null);
 
     if (!validateForm()) {
       setError('Please correct the validation errors in the form.');
-      return null;
+      return;
     }
 
-    setLoading(true);
+    setIsProcessing(true);
 
     try {
       const response = await fetch('/api/erp/documents/generate', {
@@ -199,494 +276,575 @@ export default function DocumentGenerator() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Server returned an error generating the PDF.');
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setIsProcessing(false);
+        setError(data.error || 'Failed to initialize document generation job.');
+        return;
       }
 
-      const blob = await response.blob();
-      setPdfBlob(blob);
+      // Fetch initial job state
+      const jobRes = await fetch(`/api/documents/jobs/${data.jobId}`);
+      const jobData = await jobRes.json();
 
-      // Create new blob url
-      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-      const newUrl = URL.createObjectURL(blob);
-      setPdfBlobUrl(newUrl);
-      setSuccess(true);
-
-      if (isDownloadAfter) {
-        const link = document.createElement('a');
-        link.href = newUrl;
-        link.download = getOutputFilename();
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      if (jobData.success && jobData.job) {
+        setCurrentJob(jobData.job);
       }
-
-      return blob;
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to generate PDF document.');
-      return null;
-    } finally {
-      setLoading(false);
+      console.error('Error starting document job:', err);
+      setIsProcessing(false);
+      setError(err?.message || 'Network error occurred while connecting to server.');
     }
   };
 
-  const handleDownload = () => {
-    if (pdfBlobUrl) {
-      const link = document.createElement('a');
-      link.href = pdfBlobUrl;
-      link.download = getOutputFilename();
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  const handleNewDocument = () => {
-    setFormData(initialFormState);
-    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-    setPdfBlobUrl(null);
-    setPdfBlob(null);
-    setError('');
-    setSuccess(false);
-    setValidationErrors({});
+  const formatBytes = (bytes?: number) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      {/* LEFT PANEL: Form Fields (7/12 grid) */}
-      <div className="lg:col-span-7 space-y-6">
-        
-        {/* Error notification */}
-        {error && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2.5 shadow-2xs">
-            <AlertCircle className="w-4.5 h-4.5 text-red-500 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Success notification */}
-        {success && (
-          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2.5 shadow-2xs">
-            <Check className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
-            <span>Document generated successfully! Check the preview on the right.</span>
-          </div>
-        )}
-
-        {/* SECTION 1: Wohnungsgeber (Pre-filled) */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Building className="w-4.5 h-4.5 text-[#2E4036]" />
-            <h3 className="font-heading font-extrabold text-sm text-slate-800 uppercase tracking-wider">
-              Wohnungsgeber (Landlord)
-            </h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Name / Firma</label>
-              <input 
-                type="text"
-                value={formData.wohnungsgeber.name}
-                onChange={e => handleNestedChange('wohnungsgeber', 'name', e.target.value)}
-                className={`w-full bg-slate-50 border ${validationErrors['wohnungsgeber.name'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
-              />
-              {validationErrors['wohnungsgeber.name'] && (
-                <p className="text-[10px] text-red-500 font-bold mt-1">{validationErrors['wohnungsgeber.name']}</p>
-              )}
+    <div className="space-y-8 font-body text-slate-900 pb-12">
+      {/* 1. MAIN FORM CARD */}
+      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#2E4036] text-white flex items-center justify-center font-bold shadow-md">
+              <FileText className="w-6 h-6" />
             </div>
-
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Straße, Haus-Nr.</label>
-              <input 
-                type="text"
-                value={formData.wohnungsgeber.street}
-                onChange={e => handleNestedChange('wohnungsgeber', 'street', e.target.value)}
-                className={`w-full bg-slate-50 border ${validationErrors['wohnungsgeber.street'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
-              />
-              {validationErrors['wohnungsgeber.street'] && (
-                <p className="text-[10px] text-red-500 font-bold mt-1">{validationErrors['wohnungsgeber.street']}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-1">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">PLZ</label>
-                <input 
-                  type="text"
-                  value={formData.wohnungsgeber.zip}
-                  onChange={e => handleNestedChange('wohnungsgeber', 'zip', e.target.value)}
-                  className={`w-full bg-slate-50 border ${validationErrors['wohnungsgeber.zip'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ort</label>
-                <input 
-                  type="text"
-                  value={formData.wohnungsgeber.city}
-                  onChange={e => handleNestedChange('wohnungsgeber', 'city', e.target.value)}
-                  className={`w-full bg-slate-50 border ${validationErrors['wohnungsgeber.city'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
-                />
-              </div>
-              {(validationErrors['wohnungsgeber.zip'] || validationErrors['wohnungsgeber.city']) && (
-                <p className="text-[10px] text-red-500 font-bold mt-1 col-span-3">PLZ and Ort are required</p>
-              )}
+              <h2 className="font-heading font-extrabold text-xl tracking-tight text-slate-900">
+                Wohnungsgeberbestätigung (§ 19 BMG)
+              </h2>
+              <p className="text-xs text-slate-500 font-mono">
+                Official German Landlord Confirmation Document Generator
+              </p>
             </div>
           </div>
-        </div>
 
-        {/* SECTION 2: Eigentümer der Wohnung (Optional) */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <User className="w-4.5 h-4.5 text-[#2E4036]" />
-            <h3 className="font-heading font-extrabold text-sm text-slate-800 uppercase tracking-wider">
-              Eigentümer der Wohnung (Property Owner)
-            </h3>
-            <span className="text-[10px] bg-slate-100 text-slate-500 font-mono px-2 py-0.5 rounded ml-auto">Optional</span>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-              Familienname, Vorname bzw. Bezeichnung (Owner Details)
-            </label>
-            <input 
-              type="text"
-              placeholder="Leave empty if same as Wohnungsgeber"
-              value={formData.owner.name}
-              onChange={e => handleNestedChange('owner', 'name', e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 focus:border-[#2E4036] rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all"
-            />
-            <p className="text-[9px] text-slate-400 font-medium mt-1.5">
-              Only required to be filled if the Wohnungsgeber is not the property owner.
-            </p>
-          </div>
-        </div>
-
-        {/* SECTION 3: Einzug (Move-In Date) */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Calendar className="w-4.5 h-4.5 text-[#2E4036]" />
-            <h3 className="font-heading font-extrabold text-sm text-slate-800 uppercase tracking-wider">
-              Einzug (Move-In)
-            </h3>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Einzugsdatum</label>
-            <div className="relative">
-              <input 
-                type="date"
-                value={formData.moveInDate}
-                onChange={e => {
-                  setFormData(prev => ({ ...prev, moveInDate: e.target.value }));
-                  if (validationErrors['moveInDate']) {
-                    setValidationErrors(prev => {
-                      const next = { ...prev };
-                      delete next['moveInDate'];
-                      return next;
-                    });
-                  }
-                }}
-                className={`w-full bg-slate-50 border ${validationErrors['moveInDate'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
-              />
-            </div>
-            {validationErrors['moveInDate'] && (
-              <p className="text-[10px] text-red-500 font-bold mt-1">{validationErrors['moveInDate']}</p>
-            )}
-          </div>
-        </div>
-
-        {/* SECTION 4: Wohnung (Property Address) */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <MapPin className="w-4.5 h-4.5 text-[#2E4036]" />
-            <h3 className="font-heading font-extrabold text-sm text-slate-800 uppercase tracking-wider">
-              Wohnung (Property Address)
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Straße, Haus-Nr.</label>
-              <input 
-                type="text"
-                placeholder="e.g. Warschauer Straße 46"
-                value={formData.property.street}
-                onChange={e => handleNestedChange('property', 'street', e.target.value)}
-                className={`w-full bg-slate-50 border ${validationErrors['property.street'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
-              />
-              {validationErrors['property.street'] && (
-                <p className="text-[10px] text-red-500 font-bold mt-1">{validationErrors['property.street']}</p>
-              )}
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                Zusatzangaben (e.g. Wohnungsnummer, ID, Etage)
-              </label>
-              <input 
-                type="text"
-                placeholder="e.g. Hinterhaus 2 Etage C/O Shibal"
-                value={formData.property.additionalInfo}
-                onChange={e => handleNestedChange('property', 'additionalInfo', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 focus:border-[#2E4036] rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 md:col-span-2">
-              <div className="col-span-1">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">PLZ</label>
-                <input 
-                  type="text"
-                  placeholder="10243"
-                  value={formData.property.zip}
-                  onChange={e => handleNestedChange('property', 'zip', e.target.value)}
-                  className={`w-full bg-slate-50 border ${validationErrors['property.zip'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ort</label>
-                <input 
-                  type="text"
-                  placeholder="Berlin"
-                  value={formData.property.city}
-                  onChange={e => handleNestedChange('property', 'city', e.target.value)}
-                  className={`w-full bg-slate-50 border ${validationErrors['property.city'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
-                />
-              </div>
-              {(validationErrors['property.zip'] || validationErrors['property.city']) && (
-                <p className="text-[10px] text-red-500 font-bold mt-1 col-span-3">PLZ and Ort are required</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 5: Eingezogene Personen (Persons Moving In) */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <User className="w-4.5 h-4.5 text-[#2E4036]" />
-            <h3 className="font-heading font-extrabold text-sm text-slate-800 uppercase tracking-wider">
-              Eingezogene Personen (Residents)
-            </h3>
-          </div>
-
-          <div className="space-y-3">
-            {formData.persons.map((person, idx) => (
-              <div key={idx} className="flex gap-3 items-start bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] font-mono bg-[#2E4036]/10 text-[#2E4036] w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-2 font-bold">
-                  {idx + 1}
-                </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-                  <div>
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Familienname</label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. Chavan"
-                      value={person.lastName}
-                      onChange={e => handlePersonChange(idx, 'lastName', e.target.value)}
-                      className={`w-full bg-white border ${validationErrors[`persons.${idx}.lastName`] ? 'border-red-400' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none transition-all`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Vorname</label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. Angelina Peter"
-                      value={person.firstName}
-                      onChange={e => handlePersonChange(idx, 'firstName', e.target.value)}
-                      className={`w-full bg-white border ${validationErrors[`persons.${idx}.firstName`] ? 'border-red-400' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none transition-all`}
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => removePerson(idx)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors mt-4 cursor-pointer"
-                  title="Remove Person"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={addPerson}
-              className="w-full py-2.5 border border-dashed border-slate-200 hover:border-[#2E4036] hover:bg-slate-50 text-slate-500 hover:text-[#2E4036] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              onClick={() => {
+                setFormData(initialFormState);
+                setError('');
+                setValidationErrors({});
+                setCurrentJob(null);
+              }}
+              className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-600 transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>Person hinzufügen</span>
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Reset Form</span>
             </button>
           </div>
         </div>
 
-        {/* SECTION 6: Datum (Document Date) */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Calendar className="w-4.5 h-4.5 text-[#2E4036]" />
-            <h3 className="font-heading font-extrabold text-sm text-slate-800 uppercase tracking-wider">
-              Datum & Ausstellungsort (Date & Location)
-            </h3>
+        {error && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-mono flex items-center gap-3 animate-fade-in">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={(e) => { e.preventDefault(); handleStartGeneration(); }} className="space-y-8">
+          
+          {/* SECTION 1: WOHNUNGSGEBER */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-xs font-mono font-bold text-[#2E4036] uppercase tracking-wider">
+              <Building className="w-4 h-4 text-[#CC5833]" />
+              <span>1. Angaben zum Wohnungsgeber (Vermieter / Company)</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+              <div className="md:col-span-2">
+                <label className="block text-slate-500 font-bold uppercase mb-1">
+                  Name / Firma des Wohnungsgebers *
+                </label>
+                <input
+                  type="text"
+                  value={formData.wohnungsgeber.name}
+                  onChange={(e) => handleNestedChange('wohnungsgeber', 'name', e.target.value)}
+                  placeholder="z. B. Izz & Hameed Dienstleistung UG"
+                  className={`w-full bg-slate-50 border ${validationErrors['wohnungsgeber.name'] ? 'border-rose-400 bg-rose-50/50' : 'border-slate-200'} rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors`}
+                />
+                {validationErrors['wohnungsgeber.name'] && (
+                  <span className="text-[10px] text-rose-500 font-bold mt-1 block">{validationErrors['wohnungsgeber.name']}</span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-bold uppercase mb-1">Straße, Haus-Nr. *</label>
+                <input
+                  type="text"
+                  value={formData.wohnungsgeber.street}
+                  onChange={(e) => handleNestedChange('wohnungsgeber', 'street', e.target.value)}
+                  placeholder="z. B. Alt-Moabit 58"
+                  className={`w-full bg-slate-50 border ${validationErrors['wohnungsgeber.street'] ? 'border-rose-400 bg-rose-50/50' : 'border-slate-200'} rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors`}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-slate-500 font-bold uppercase mb-1">PLZ *</label>
+                  <input
+                    type="text"
+                    value={formData.wohnungsgeber.zip}
+                    onChange={(e) => handleNestedChange('wohnungsgeber', 'zip', e.target.value)}
+                    placeholder="10555"
+                    className={`w-full bg-slate-50 border ${validationErrors['wohnungsgeber.zip'] ? 'border-rose-400 bg-rose-50/50' : 'border-slate-200'} rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors`}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-slate-500 font-bold uppercase mb-1">Ort *</label>
+                  <input
+                    type="text"
+                    value={formData.wohnungsgeber.city}
+                    onChange={(e) => handleNestedChange('wohnungsgeber', 'city', e.target.value)}
+                    placeholder="Berlin"
+                    className={`w-full bg-slate-50 border ${validationErrors['wohnungsgeber.city'] ? 'border-rose-400 bg-rose-50/50' : 'border-slate-200'} rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors`}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* SECTION 2: EIGENTÜMER & EINZUGSDATUM */}
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-2 text-xs font-mono font-bold text-[#2E4036] uppercase tracking-wider">
+              <Calendar className="w-4 h-4 text-[#CC5833]" />
+              <span>2. Eigentümer & Einzugsdatum</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+              <div className="md:col-span-2">
+                <label className="block text-slate-500 font-bold uppercase mb-1">
+                  Name des Eigentümers <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.owner.name}
+                  onChange={(e) => handleNestedChange('owner', 'name', e.target.value)}
+                  placeholder="Nur ausfüllen, wenn nicht identisch mit Wohnungsgeber"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-bold uppercase mb-1">Einzugsdatum *</label>
+                <input
+                  type="date"
+                  value={formData.moveInDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, moveInDate: e.target.value }))}
+                  className={`w-full bg-slate-50 border ${validationErrors['moveInDate'] ? 'border-rose-400' : 'border-slate-200'} rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors`}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 3: WOHNUNG */}
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-2 text-xs font-mono font-bold text-[#2E4036] uppercase tracking-wider">
+              <MapPin className="w-4 h-4 text-[#CC5833]" />
+              <span>3. Anschrift der bezogenen Wohnung</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+              <div>
+                <label className="block text-slate-500 font-bold uppercase mb-1">Straße, Haus-Nr. *</label>
+                <input
+                  type="text"
+                  value={formData.property.street}
+                  onChange={(e) => handleNestedChange('property', 'street', e.target.value)}
+                  placeholder="z. B. Warschauer Straße 46"
+                  className={`w-full bg-slate-50 border ${validationErrors['property.street'] ? 'border-rose-400' : 'border-slate-200'} rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-bold uppercase mb-1">
+                  Zusatzangaben <span className="text-slate-400 font-normal">(Stockwerk, C/O)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.property.additionalInfo}
+                  onChange={(e) => handleNestedChange('property', 'additionalInfo', e.target.value)}
+                  placeholder="z. B. Hinterhaus 2 Etage C/O Shibal"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-slate-500 font-bold uppercase mb-1">PLZ *</label>
+                  <input
+                    type="text"
+                    value={formData.property.zip}
+                    onChange={(e) => handleNestedChange('property', 'zip', e.target.value)}
+                    placeholder="10234"
+                    className={`w-full bg-slate-50 border ${validationErrors['property.zip'] ? 'border-rose-400' : 'border-slate-200'} rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors`}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-slate-500 font-bold uppercase mb-1">Ort *</label>
+                  <input
+                    type="text"
+                    value={formData.property.city}
+                    onChange={(e) => handleNestedChange('property', 'city', e.target.value)}
+                    placeholder="Berlin"
+                    className={`w-full bg-slate-50 border ${validationErrors['property.city'] ? 'border-rose-400' : 'border-slate-200'} rounded-xl px-3 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036] transition-colors`}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 4: EINGEZO GENE PERSONEN TABLE */}
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-mono font-bold text-[#2E4036] uppercase tracking-wider">
+                <User className="w-4 h-4 text-[#CC5833]" />
+                <span>4. Eingezogene Personen</span>
+              </div>
+              <button
+                type="button"
+                onClick={addPerson}
+                className="text-xs font-mono font-bold text-[#CC5833] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Person hinzufügen</span>
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {formData.persons.map((person, idx) => (
+                <div key={idx} className="flex items-center gap-3 bg-slate-50 border border-slate-200/80 rounded-2xl p-3 text-xs font-mono">
+                  <span className="w-6 h-6 rounded-full bg-[#2E4036]/10 text-[#2E4036] font-bold flex items-center justify-center text-[10px] shrink-0">
+                    {idx + 1}
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+                    <input
+                      type="text"
+                      placeholder="Familienname *"
+                      value={person.lastName}
+                      onChange={(e) => handlePersonChange(idx, 'lastName', e.target.value)}
+                      className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#2E4036]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Vornamen *"
+                      value={person.firstName}
+                      onChange={(e) => handlePersonChange(idx, 'firstName', e.target.value)}
+                      className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#2E4036]"
+                    />
+                  </div>
+                  {formData.persons.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removePerson(idx)}
+                      className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SECTION 5: ISSUE DATE & PLACE */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 text-xs font-mono">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ausstellungsort</label>
-              <input 
+              <label className="block text-slate-500 font-bold uppercase mb-1">Ausstellungsort</label>
+              <input
                 type="text"
                 value={formData.issuePlace}
-                onChange={e => setFormData(prev => ({ ...prev, issuePlace: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-200 focus:border-[#2E4036] rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all"
+                onChange={(e) => setFormData(prev => ({ ...prev, issuePlace: e.target.value }))}
+                placeholder="Berlin"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#2E4036]"
               />
             </div>
-
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Datum</label>
-              <input 
+              <label className="block text-slate-500 font-bold uppercase mb-1">Ausstellungsdatum *</label>
+              <input
                 type="date"
                 value={formData.issueDate}
-                onChange={e => {
-                  setFormData(prev => ({ ...prev, issueDate: e.target.value }));
-                  if (validationErrors['issueDate']) {
-                    setValidationErrors(prev => {
-                      const next = { ...prev };
-                      delete next['issueDate'];
-                      return next;
-                    });
-                  }
-                }}
-                className={`w-full bg-slate-50 border ${validationErrors['issueDate'] ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#2E4036]'} rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white transition-all`}
+                onChange={(e) => setFormData(prev => ({ ...prev, issueDate: e.target.value }))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:bg-white focus:border-[#2E4036]"
               />
-              {validationErrors['issueDate'] && (
-                <p className="text-[10px] text-red-500 font-bold mt-1">{validationErrors['issueDate']}</p>
-              )}
             </div>
           </div>
-        </div>
 
-        {/* PRIMARY ACTIONS: Create / Preview */}
-        <div className="flex gap-4">
-          <button
-            type="button"
-            onClick={() => generateDocument(false)}
-            disabled={loading}
-            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
-            <span>PDF VORSCHAU</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => generateDocument(true)}
-            disabled={loading}
-            className="flex-1 bg-[#2E4036] hover:bg-[#1C2C23] text-white py-3 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4" />
-            )}
-            <span>PDF ERSTELLEN</span>
-          </button>
-        </div>
-
+          {/* GENERATE SUBMIT BUTTON */}
+          <div className="pt-4 flex justify-end">
+            <button
+              type="submit"
+              disabled={isProcessing}
+              className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl text-xs font-bold text-white transition-all shadow-md flex items-center justify-center gap-2.5 ${
+                isProcessing
+                  ? 'bg-slate-400 cursor-not-allowed'
+                  : 'bg-[#2E4036] hover:bg-[#1E2E25] cursor-pointer hover:shadow-lg'
+              }`}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Generating Document...</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="w-4 h-4" />
+                  <span>Generate Document PDF</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
 
-      {/* RIGHT PANEL: Sticky Live PDF Preview (5/12 grid) */}
-      <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
-        
-        {/* Preview Actions bar */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs flex items-center justify-between text-xs">
-          <span className="font-heading font-extrabold text-slate-700 tracking-wider uppercase text-[10px]">
-            Live PDF Document Preview
-          </span>
-
-          {pdfBlobUrl && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="bg-[#CC5833] hover:bg-[#B34524] text-white px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
-              >
-                <Download className="w-3 h-3" />
-                <span>PDF HERUNTERLADEN</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleNewDocument}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-              >
-                NEUES DOKUMENT
-              </button>
+      {/* 2. REAL-TIME JOB PROGRESS CARD */}
+      {currentJob && (
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">Generation Job Status</span>
+              <h3 className="font-heading font-extrabold text-lg text-slate-900 flex items-center gap-2">
+                <span>{currentJob.templateName}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                  currentJob.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
+                  currentJob.status === 'FAILED' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {currentJob.status}
+                </span>
+              </h3>
             </div>
-          )}
-        </div>
+            {currentJob.fileName && (
+              <span className="text-xs font-mono text-slate-500 bg-slate-100 px-3 py-1 rounded-xl">
+                {currentJob.fileName}
+              </span>
+            )}
+          </div>
 
-        {/* Embedded Iframe Preview Area */}
-        <div className="border border-slate-200/85 rounded-2xl overflow-hidden bg-slate-100 aspect-[1/1.414] w-full flex items-center justify-center relative shadow-xs">
-          {pdfBlobUrl ? (
-            <object 
-              data={pdfBlobUrl} 
-              type="application/pdf"
-              className="w-full h-full border-none"
-            >
-              <div className="p-8 text-center space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
-                  <AlertCircle className="w-6 h-6" />
+          {/* Live Progress Bar */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs font-mono font-bold text-slate-600">
+              <span>{currentJob.stepMessage}</span>
+              <span>{currentJob.progress}%</span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ${
+                  currentJob.status === 'COMPLETED' ? 'bg-emerald-600' :
+                  currentJob.status === 'FAILED' ? 'bg-rose-600' : 'bg-[#CC5833]'
+                }`}
+                style={{ width: `${currentJob.progress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Step Checklist */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono pt-2">
+            {currentJob.steps.map((step, idx) => (
+              <div
+                key={idx}
+                className={`p-3 rounded-2xl border flex items-center gap-2.5 ${
+                  step.completed
+                    ? 'bg-emerald-50/60 border-emerald-200/80 text-emerald-900'
+                    : 'bg-slate-50 border-slate-200/60 text-slate-400'
+                }`}
+              >
+                {step.completed ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <Clock className="w-4 h-4 text-slate-300 shrink-0" />
+                )}
+                <span className="font-medium text-[11px] leading-tight">{step.step}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Job Completion Action Buttons */}
+          {currentJob.status === 'COMPLETED' && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0">
+                  <CheckCircle2 className="w-6 h-6" />
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-bold text-slate-700">Preview Not Supported In Browser</p>
-                  <p className="text-[10px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                    Your current browser or device does not support inline PDF viewing. Please download the document directly to verify it.
+                <div>
+                  <h4 className="font-bold text-sm text-emerald-950">Document Ready for Download</h4>
+                  <p className="text-xs text-emerald-700 font-mono">
+                    File Size: {formatBytes(currentJob.fileSize)} • Verified & Stored
                   </p>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button
                   type="button"
-                  onClick={handleDownload}
-                  className="bg-[#2E4036] hover:bg-[#1C2C23] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer mx-auto flex items-center gap-1.5"
+                  onClick={() => {
+                    setPreviewPdfUrl(currentJob.previewUrl || `/api/documents/${currentJob.documentId}/preview`);
+                    setPreviewTitle(currentJob.fileName || 'Wohnungsgeberbestätigung.pdf');
+                  }}
+                  className="flex-1 sm:flex-initial bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                >
+                  <Eye className="w-4 h-4 text-[#2E4036]" />
+                  <span>Preview PDF</span>
+                </button>
+
+                <a
+                  href={currentJob.downloadUrl || `/api/documents/${currentJob.documentId}/download`}
+                  download={currentJob.fileName}
+                  className="flex-1 sm:flex-initial bg-[#CC5833] hover:bg-[#CC5833]/90 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Download PDF</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          {currentJob.status === 'FAILED' && (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-rose-800 text-xs font-mono space-y-2">
+              <div className="flex items-center gap-2 font-bold text-rose-900">
+                <AlertCircle className="w-4 h-4" />
+                <span>Generation Error</span>
+              </div>
+              <p>{currentJob.errorMessage || 'An error occurred during PDF generation.'}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. DOCUMENT HISTORY TABLE */}
+      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-heading font-extrabold text-lg text-slate-900">Document History</h3>
+            <p className="text-xs text-slate-500 font-mono">
+              View, preview, and download previously generated documents.
+            </p>
+          </div>
+          <button
+            onClick={fetchHistory}
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            title="Refresh History"
+          >
+            <RefreshCw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        {history.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 font-mono text-xs border border-dashed border-slate-200 rounded-2xl">
+            No generated documents in history yet.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
+                  <th className="py-3 px-4 font-bold">Document Name</th>
+                  <th className="py-3 px-4 font-bold">Client / Inhabitant</th>
+                  <th className="py-3 px-4 font-bold">Created Date</th>
+                  <th className="py-3 px-4 font-bold">Size</th>
+                  <th className="py-3 px-4 font-bold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800">
+                {history.map((rec) => (
+                  <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-[#2E4036]">
+                      {rec.fileName}
+                    </td>
+                    <td className="py-3.5 px-4 font-medium text-slate-700">
+                      {rec.customerName || 'Client'}
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-500">
+                      {new Date(rec.createdAt).toLocaleDateString('de-DE', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-500">
+                      {formatBytes(rec.fileSize)}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setPreviewPdfUrl(rec.previewUrl);
+                            setPreviewTitle(rec.fileName);
+                          }}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Preview</span>
+                        </button>
+                        <a
+                          href={rec.downloadUrl}
+                          download={rec.fileName}
+                          className="px-3 py-1.5 rounded-lg bg-[#2E4036] hover:bg-[#1E2E25] text-white font-bold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download</span>
+                        </a>
+                        <button
+                          onClick={() => deleteHistoryRecord(rec.documentId)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Delete document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 4. INLINE PDF PREVIEW MODAL */}
+      {previewPdfUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fade-in font-body">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl h-[85vh] shadow-2xl flex flex-col overflow-hidden relative">
+            {/* Modal Header */}
+            <div className="bg-[#2E4036] text-white px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-[#CC5833]" />
+                <h3 className="font-bold text-sm font-mono tracking-tight">{previewTitle}</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <a
+                  href={previewPdfUrl.replace('/preview', '/download')}
+                  download={previewTitle}
+                  className="bg-[#CC5833] hover:bg-[#CC5833]/90 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </a>
+                <button
+                  onClick={() => setPreviewPdfUrl(null)}
+                  className="p-1.5 rounded-xl hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </object>
-          ) : (
-            <div className="p-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-200/60 flex items-center justify-center text-slate-400 mx-auto">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-700">No Preview Generated Yet</p>
-                <p className="text-[10px] text-slate-400 leading-relaxed max-w-xs mt-1">
-                  Fill in the form on the left and click <b>PDF VORSCHAU</b> to generate the actual document and preview it here.
-                </p>
-              </div>
             </div>
-          )}
 
-          {loading && (
-            <div className="absolute inset-0 bg-white/70 backdrop-blur-2xs flex flex-col items-center justify-center gap-3 z-10">
-              <RefreshCw className="w-8 h-8 text-[#2E4036] animate-spin" />
-              <span className="text-xs font-bold text-slate-700">Generating document...</span>
+            {/* Modal PDF Viewer Iframe */}
+            <div className="flex-1 bg-slate-100 relative overflow-hidden">
+              <iframe
+                src={previewPdfUrl}
+                className="w-full h-full border-none"
+                title="PDF Document Preview"
+              />
             </div>
-          )}
+          </div>
         </div>
-
-        {/* Informational tip */}
-        <div className="p-3 bg-slate-50 border border-slate-200/60 rounded-xl text-[10px] text-slate-500 font-medium leading-relaxed">
-          <b>Note on visual accuracy:</b> The preview uses your browser's native PDF renderer to display the actual output. Double-check all boxes before final printing or downloading.
-        </div>
-
-      </div>
+      )}
     </div>
   );
 }

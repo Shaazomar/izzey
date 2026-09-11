@@ -45,8 +45,8 @@ export default function InvoiceDrawer({
 
   // Form State
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [issueDate, setIssueDate] = useState('');
+  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(() => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<string>('DRAFT');
   const [items, setItems] = useState<InvoiceItemInput[]>([
@@ -394,7 +394,17 @@ export default function InvoiceDrawer({
                 <input
                   type="date"
                   value={issueDate}
-                  onChange={(e) => setIssueDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setIssueDate(newDate);
+                    if (newDate) {
+                      const d = new Date(newDate);
+                      if (!isNaN(d.getTime())) {
+                        const nextDue = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
+                        setDueDate(nextDue.toISOString().split('T')[0]);
+                      }
+                    }
+                  }}
                   className="w-full bg-[#EAE8E2] border border-black/10 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#102B6A]"
                 />
               </div>

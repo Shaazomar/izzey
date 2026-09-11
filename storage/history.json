@@ -1,0 +1,15 @@
+[
+  {
+    "id": "doc_2026_09_11_soecba",
+    "documentId": "doc_2026_09_11_soecba",
+    "templateId": "wohnungsgeberbestaetigung",
+    "templateName": "Wohnungsgeberbestätigung (§ 19 BMG)",
+    "fileName": "Wohnungsgeberbestaetigung_Chavan_Angelina_Peter.pdf",
+    "fileSize": 2939,
+    "status": "COMPLETED",
+    "createdAt": "2026-09-11T11:17:28.864Z",
+    "downloadUrl": "/api/documents/doc_2026_09_11_soecba/download",
+    "previewUrl": "/api/documents/doc_2026_09_11_soecba/preview",
+    "customerName": "Angelina Peter Chavan"
+  }
+]

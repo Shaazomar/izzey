@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { generateWohnungsgeberbestaetigung, DocumentGeneratorData } from '@/lib/documents/pdf-generator';
+import { createDocumentJob } from '@/lib/documents/job-manager';
 import { z } from 'zod';
 
 const generateSchema = z.object({
@@ -33,13 +33,11 @@ const generateSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Session check to protect the endpoint
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ success: false, error: 'Unauthorized access' }, { status: 401 });
     }
 
-    // 2. Parse and validate JSON request body
     const body = await req.json();
     const result = generateSchema.safeParse(body);
     
@@ -50,20 +48,19 @@ export async function POST(req: NextRequest) {
 
     const validatedData = result.data;
 
-    // 3. Generate PDF bytes
-    const pdfBytes = await generateWohnungsgeberbestaetigung(validatedData as DocumentGeneratorData);
+    // Create document generation job
+    const job = createDocumentJob('wohnungsgeberbestaetigung', validatedData);
 
-    // 4. Return as application/pdf binary response
-    return new NextResponse(Buffer.from(pdfBytes), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename=Wohnungsgeberbestaetigung.pdf`,
-      },
+    return NextResponse.json({
+      success: true,
+      jobId: job.id,
+      documentId: job.documentId,
+      status: job.status,
+      message: job.stepMessage,
     });
 
   } catch (err: any) {
-    console.error('Error in PDF generation endpoint:', err);
-    return NextResponse.json({ success: false, error: 'PDF generation failed. Please try again.' }, { status: 500 });
+    console.error('Error in PDF generation route:', err);
+    return NextResponse.json({ success: false, error: 'Failed to queue document job.' }, { status: 500 });
   }
 }

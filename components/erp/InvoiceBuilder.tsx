@@ -157,9 +157,9 @@ export default function InvoiceBuilder({
   const [custVatNumber, setCustVatNumber] = useState('');
 
   // Invoice Config
-  const [invoiceNumber, setInvoiceNumber] = useState('INV-2026-0001');
-  const [issueDate, setIssueDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState(() => `INV-${new Date().getFullYear()}-0001`);
+  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(() => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [currency, setCurrency] = useState('EUR');
   const [language, setLanguage] = useState<'de' | 'en' | 'both'>('both');
   const [notes, setNotes] = useState('');
@@ -598,7 +598,17 @@ export default function InvoiceBuilder({
                 <input
                   type="date"
                   value={issueDate}
-                  onChange={(e) => setIssueDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setIssueDate(newDate);
+                    if (newDate) {
+                      const d = new Date(newDate);
+                      if (!isNaN(d.getTime())) {
+                        const nextDue = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
+                        setDueDate(nextDue.toISOString().split('T')[0]);
+                      }
+                    }
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
                 />
               </div>
