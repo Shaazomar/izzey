@@ -379,7 +379,7 @@ export default function InvoiceBuilder({
       phone: '+49 (0) 30 1234 5678',
       email: 'info@izzey.de',
       website: 'www.izzey.de',
-      vatNumber: 'DE321654987',
+      vatNumber: '1130/360/50274',
     },
     customer: {
       name: custName || 'Client Name',
