@@ -24,6 +24,7 @@ export async function getSettings() {
       settings = await prisma.systemSetting.create({
         data: {
           companyName: 'Izzey Clean & Move',
+          vatNumber: '1130/360/50274',
           invoicePrefix: 'INV-',
           quotePrefix: 'Q-',
           paymentTermsDays: 14,

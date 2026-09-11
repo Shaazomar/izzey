@@ -30,7 +30,7 @@ export default async function InvoicePreviewPage({ params }: InvoicePreviewPageP
     phone: '+49 176 2170 9991',
     email: 'info@izzey.de',
     website: 'www.izzey.de',
-    vatNumber: settings?.vatNumber || '1130 / 360 / 50274 steuerlich',
+    vatNumber: settings?.vatNumber || '1130/360/50274',
   };
 
   const customer = {

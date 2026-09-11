@@ -13,7 +13,7 @@ async function main() {
     create: {
       id: 'default-settings',
       companyName: 'Izzey Clean & Move',
-      vatNumber: '1130 / 360 / 50274 steuerlich',
+      vatNumber: '1130/360/50274',
       invoicePrefix: 'INV-',
       quotePrefix: 'Q-',
       paymentTermsDays: 14,
