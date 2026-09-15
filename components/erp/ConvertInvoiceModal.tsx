@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, ArrowRight, CheckCircle2, Calendar, FileText } from 'lucide-react';
 import { convertQuoteToInvoice } from '@/app/actions/quotes';
+import { toDateInputValue } from '@/lib/formatDate';
 
 interface ConvertInvoiceModalProps {
   quote: any | null;
@@ -15,25 +16,46 @@ export default function ConvertInvoiceModal({ quote, isOpen, onClose, onSuccess 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [dateType, setDateType] = useState<'SINGLE_DATE' | 'CONTRACT_PERIOD'>('SINGLE_DATE');
   const [issueDate, setIssueDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
+  const [toDate, setToDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
   const [dueDate, setDueDate] = useState<string>(
     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
 
+  // Default the invoice date type/period to the source quotation's own selection.
+  useEffect(() => {
+    if (!quote) return;
+    setDateType(quote.dateType || 'SINGLE_DATE');
+    setIssueDate(toDateInputValue(quote.date) || new Date().toISOString().split('T')[0]);
+    setToDate(toDateInputValue(quote.toDate) || toDateInputValue(quote.date) || new Date().toISOString().split('T')[0]);
+    setDueDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  }, [quote, isOpen]);
+
   if (!isOpen || !quote) return null;
 
   const handleConvert = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
+    if (dateType === 'CONTRACT_PERIOD' && new Date(toDate) < new Date(issueDate)) {
+      setError('From Date cannot be later than To Date.');
+      return;
+    }
+
+    setLoading(true);
+
     const res = await convertQuoteToInvoice(quote.id, {
+      dateType,
       issueDate: new Date(issueDate),
+      toDate: dateType === 'CONTRACT_PERIOD' ? new Date(toDate) : null,
       dueDate: new Date(dueDate),
     });
-    
+
     setLoading(false);
 
     if (res.success && res.data) {
@@ -88,27 +110,66 @@ export default function ConvertInvoiceModal({ quote, isOpen, onClose, onSuccess 
             </div>
           </div>
 
+          <div>
+            <label className="block text-slate-500 font-bold uppercase mb-1">Date Type</label>
+            <select
+              value={dateType}
+              onChange={(e) => setDateType(e.target.value as 'SINGLE_DATE' | 'CONTRACT_PERIOD')}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:bg-white focus:border-[#2E4036]"
+            >
+              <option value="SINGLE_DATE">Single Date</option>
+              <option value="CONTRACT_PERIOD">Contract Period</option>
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-slate-500 font-bold uppercase mb-1">Invoice Date</label>
-              <input
-                type="date"
-                value={issueDate}
-                onChange={(e) => {
-                  const newDate = e.target.value;
-                  setIssueDate(newDate);
-                  if (newDate) {
-                    const d = new Date(newDate);
-                    if (!isNaN(d.getTime())) {
-                      const nextDue = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
-                      setDueDate(nextDue.toISOString().split('T')[0]);
+            {dateType === 'SINGLE_DATE' ? (
+              <div>
+                <label className="block text-slate-500 font-bold uppercase mb-1">Invoice Date</label>
+                <input
+                  type="date"
+                  value={issueDate}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setIssueDate(newDate);
+                    if (newDate) {
+                      const d = new Date(newDate);
+                      if (!isNaN(d.getTime())) {
+                        const nextDue = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
+                        setDueDate(nextDue.toISOString().split('T')[0]);
+                      }
                     }
-                  }
-                }}
-                required
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:bg-white focus:border-[#2E4036]"
-              />
-            </div>
+                  }}
+                  required
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:bg-white focus:border-[#2E4036]"
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-slate-500 font-bold uppercase mb-1">From Date</label>
+                  <input
+                    type="date"
+                    value={issueDate}
+                    max={toDate || undefined}
+                    onChange={(e) => setIssueDate(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:bg-white focus:border-[#2E4036]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-bold uppercase mb-1">To Date</label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    min={issueDate || undefined}
+                    onChange={(e) => setToDate(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:bg-white focus:border-[#2E4036]"
+                  />
+                </div>
+              </>
+            )}
             <div>
               <label className="block text-slate-500 font-bold uppercase mb-1">Due Date</label>
               <input
@@ -120,6 +181,12 @@ export default function ConvertInvoiceModal({ quote, isOpen, onClose, onSuccess 
               />
             </div>
           </div>
+
+          {dateType === 'CONTRACT_PERIOD' && new Date(toDate) < new Date(issueDate) && (
+            <div className="text-[11px] font-bold text-rose-600">
+              From Date cannot be later than To Date.
+            </div>
+          )}
 
           <div className="pt-4 flex justify-end gap-3 font-body">
             <button

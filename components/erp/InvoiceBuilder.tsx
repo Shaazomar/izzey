@@ -158,7 +158,9 @@ export default function InvoiceBuilder({
 
   // Invoice Config
   const [invoiceNumber, setInvoiceNumber] = useState(() => `INV-${new Date().getFullYear()}-0001`);
+  const [dateType, setDateType] = useState<'SINGLE_DATE' | 'CONTRACT_PERIOD'>('SINGLE_DATE');
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState(() => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [currency, setCurrency] = useState('EUR');
   const [language, setLanguage] = useState<'de' | 'en' | 'both'>('both');
@@ -187,7 +189,9 @@ export default function InvoiceBuilder({
     if (invoiceToEdit) {
       setSelectedCustomerId(invoiceToEdit.customerId);
       setInvoiceNumber(invoiceToEdit.invoiceNumber || 'INV-2026-0001');
+      setDateType(invoiceToEdit.dateType || 'SINGLE_DATE');
       setIssueDate(new Date(invoiceToEdit.issueDate).toISOString().split('T')[0]);
+      setToDate(invoiceToEdit.toDate ? new Date(invoiceToEdit.toDate).toISOString().split('T')[0] : new Date(invoiceToEdit.issueDate).toISOString().split('T')[0]);
       setDueDate(new Date(invoiceToEdit.dueDate).toISOString().split('T')[0]);
       setNotes(invoiceToEdit.notes || '');
       setStatus(invoiceToEdit.status || 'DRAFT');
@@ -227,7 +231,9 @@ export default function InvoiceBuilder({
         setCustVatNumber(defaultCust.vatNumber || '');
       }
       setInvoiceNumber(`INV-${new Date().getFullYear()}-0001`);
+      setDateType('SINGLE_DATE');
       setIssueDate(new Date().toISOString().split('T')[0]);
+      setToDate(new Date().toISOString().split('T')[0]);
       setDueDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
       setNotes('Zahlbar innerhalb von 14 Tagen ohne Abzug. Vielen Dank für Ihren Auftrag!');
       setStatus('DRAFT');
@@ -331,9 +337,17 @@ export default function InvoiceBuilder({
       return;
     }
 
+    if (dateType === 'CONTRACT_PERIOD' && new Date(toDate) < new Date(issueDate)) {
+      setError('From Date cannot be later than To Date.');
+      setLoading(false);
+      return;
+    }
+
     const payload = {
       customerId: selectedCustomerId,
+      dateType,
       issueDate: new Date(issueDate),
+      toDate: dateType === 'CONTRACT_PERIOD' ? new Date(toDate) : null,
       dueDate: new Date(dueDate),
       status: targetStatus || status,
       items: items.map((it) => ({
@@ -369,7 +383,9 @@ export default function InvoiceBuilder({
   const liveDocumentData: DocumentData = {
     type: 'invoice',
     number: invoiceNumber,
+    dateType,
     date: issueDate ? new Date(issueDate) : new Date(),
+    toDate: dateType === 'CONTRACT_PERIOD' && toDate ? new Date(toDate) : undefined,
     dueDate: dueDate ? new Date(dueDate) : undefined,
     language,
     currency,
@@ -594,24 +610,67 @@ export default function InvoiceBuilder({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Invoice Date</label>
-                <input
-                  type="date"
-                  value={issueDate}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setIssueDate(newDate);
-                    if (newDate) {
-                      const d = new Date(newDate);
-                      if (!isNaN(d.getTime())) {
-                        const nextDue = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
-                        setDueDate(nextDue.toISOString().split('T')[0]);
-                      }
-                    }
-                  }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
-                />
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Date Type</label>
+                <select
+                  value={dateType}
+                  onChange={(e) => setDateType(e.target.value as 'SINGLE_DATE' | 'CONTRACT_PERIOD')}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-emerald-700 focus:outline-none"
+                >
+                  <option value="SINGLE_DATE">Single Date</option>
+                  <option value="CONTRACT_PERIOD">Contract Period</option>
+                </select>
               </div>
+
+              {dateType === 'SINGLE_DATE' ? (
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Invoice Date</label>
+                  <input
+                    type="date"
+                    value={issueDate}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      setIssueDate(newDate);
+                      if (newDate) {
+                        const d = new Date(newDate);
+                        if (!isNaN(d.getTime())) {
+                          const nextDue = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
+                          setDueDate(nextDue.toISOString().split('T')[0]);
+                        }
+                      }
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">From Date</label>
+                    <input
+                      type="date"
+                      value={issueDate}
+                      max={toDate || undefined}
+                      onChange={(e) => setIssueDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">To Date</label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      min={issueDate || undefined}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                </>
+              )}
+
+              {dateType === 'CONTRACT_PERIOD' && new Date(toDate) < new Date(issueDate) && (
+                <div className="col-span-2 sm:col-span-3 text-[10px] font-bold text-rose-600 -mt-1">
+                  From Date cannot be later than To Date.
+                </div>
+              )}
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Due Date</label>

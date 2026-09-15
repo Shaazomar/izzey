@@ -1,10 +1,13 @@
 import React from 'react';
 import Image from 'next/image';
+import { formatDate } from '@/lib/formatDate';
 
 interface HeaderProps {
   type: 'quotation' | 'invoice';
   number: string;
+  dateType?: 'SINGLE_DATE' | 'CONTRACT_PERIOD';
   date: Date | string | number;
+  toDate?: Date | string | number | null;
   serviceDate?: Date | string | number | null;
   validUntil?: Date | string | number | null;
   dueDate?: Date | string | number | null;
@@ -14,13 +17,16 @@ interface HeaderProps {
 export default function Header({
   type,
   number,
+  dateType = 'SINGLE_DATE',
   date,
+  toDate,
   serviceDate,
   validUntil,
   dueDate,
   language = 'both',
 }: HeaderProps) {
   const isQuote = type === 'quotation';
+  const isContractPeriod = dateType === 'CONTRACT_PERIOD' && !!toDate;
 
   // Multilingual Headings
   const getHeading = () => {
@@ -36,6 +42,11 @@ export default function Header({
   };
 
   const getDateLabel = () => {
+    if (isContractPeriod) {
+      if (language === 'de') return 'LEISTUNGSZEITRAUM';
+      if (language === 'en') return 'CONTRACT PERIOD';
+      return 'LEISTUNGSZEITRAUM / CONTRACT PERIOD';
+    }
     if (language === 'de') return 'DATUM';
     if (language === 'en') return 'DATE';
     return 'DATUM / DATE';
@@ -57,17 +68,6 @@ export default function Header({
       if (language === 'en') return 'DUE DATE';
       return 'FÄLLIG AM / DUE DATE';
     }
-  };
-
-  const formatDate = (d?: Date | string | number | null) => {
-    if (!d) return '—';
-    const dateObj = typeof d === 'string' || typeof d === 'number' ? new Date(d) : d;
-    if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '—';
-    return dateObj.toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
   };
 
   return (
@@ -99,7 +99,9 @@ export default function Header({
             </div>
             <div className="flex justify-between items-center border-t border-slate-200 pt-1.5 gap-4">
               <span className="text-slate-500 uppercase text-[8.5px] font-bold tracking-wider whitespace-nowrap">{getDateLabel()}</span>
-              <span className="font-bold text-slate-800 whitespace-nowrap">{formatDate(date)}</span>
+              <span className="font-bold text-slate-800 whitespace-nowrap">
+                {isContractPeriod ? `${formatDate(date)} – ${formatDate(toDate)}` : formatDate(date)}
+              </span>
             </div>
             {serviceDate && (
               <div className="flex justify-between items-center border-t border-slate-200 pt-1.5 gap-4">

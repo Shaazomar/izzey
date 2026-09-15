@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import { deleteQuotation } from '@/app/actions/quotes';
+import { formatDateOrPeriod } from '@/lib/formatDate';
 
 interface DashboardQuotationsProps {
   initialQuotes: any[];
@@ -154,7 +155,7 @@ export default function DashboardQuotations({ initialQuotes }: DashboardQuotatio
                 <td className="py-3.5 px-2">
                   <StatusBadge status={q.status} />
                 </td>
-                <td className="py-3.5 px-2 text-slate-500">{new Date(q.date).toLocaleDateString('de-DE')}</td>
+                <td className="py-3.5 px-2 text-slate-500">{formatDateOrPeriod(q.dateType, q.date, q.toDate)}</td>
                 <td className="py-3.5 px-2 text-right">
                   <div className="flex items-center justify-end gap-1.5">
                     <button 

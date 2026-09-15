@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Role, QuotationStatus, InvoiceStatus, PaymentMethod, ExpenseCategory, JobStatus } from '@prisma/client';
+import { Role, QuotationStatus, InvoiceStatus, PaymentMethod, ExpenseCategory, JobStatus, DateType } from '@prisma/client';
 
 export const CustomerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -32,15 +32,26 @@ export const QuotationItemSchema = z.object({
   vatPercent: z.number().nonnegative().default(19),
 });
 
-export const QuotationSchema = z.object({
-  customerId: z.string().uuid(),
-  propertyId: z.string().optional().nullable(),
-  date: z.coerce.date().default(() => new Date()),
-  validUntil: z.coerce.date(),
-  status: z.nativeEnum(QuotationStatus).default(QuotationStatus.DRAFT),
-  items: z.array(QuotationItemSchema).min(1, 'At least one item is required'),
-  notes: z.string().optional().nullable(),
-});
+export const QuotationSchema = z
+  .object({
+    customerId: z.string().uuid(),
+    propertyId: z.string().optional().nullable(),
+    dateType: z.nativeEnum(DateType).default(DateType.SINGLE_DATE),
+    date: z.coerce.date().default(() => new Date()),
+    toDate: z.coerce.date().optional().nullable(),
+    validUntil: z.coerce.date(),
+    status: z.nativeEnum(QuotationStatus).default(QuotationStatus.DRAFT),
+    items: z.array(QuotationItemSchema).min(1, 'At least one item is required'),
+    notes: z.string().optional().nullable(),
+  })
+  .refine(
+    (data) => data.dateType !== DateType.CONTRACT_PERIOD || data.toDate != null,
+    { message: 'To Date is required for a contract period.', path: ['toDate'] }
+  )
+  .refine(
+    (data) => data.dateType !== DateType.CONTRACT_PERIOD || !data.toDate || data.toDate >= data.date,
+    { message: 'From Date cannot be later than To Date.', path: ['toDate'] }
+  );
 
 export const InvoiceItemSchema = z.object({
   serviceName: z.string().min(1, 'Service name is required'),
@@ -52,15 +63,26 @@ export const InvoiceItemSchema = z.object({
   vatPercent: z.number().nonnegative().default(19),
 });
 
-export const InvoiceSchema = z.object({
-  customerId: z.string().uuid(),
-  quotationId: z.string().uuid().optional().nullable(),
-  issueDate: z.coerce.date().default(() => new Date()),
-  dueDate: z.coerce.date(),
-  status: z.nativeEnum(InvoiceStatus).default(InvoiceStatus.DRAFT),
-  items: z.array(InvoiceItemSchema).min(1, 'At least one item is required'),
-  notes: z.string().optional().nullable(),
-});
+export const InvoiceSchema = z
+  .object({
+    customerId: z.string().uuid(),
+    quotationId: z.string().uuid().optional().nullable(),
+    dateType: z.nativeEnum(DateType).default(DateType.SINGLE_DATE),
+    issueDate: z.coerce.date().default(() => new Date()),
+    toDate: z.coerce.date().optional().nullable(),
+    dueDate: z.coerce.date(),
+    status: z.nativeEnum(InvoiceStatus).default(InvoiceStatus.DRAFT),
+    items: z.array(InvoiceItemSchema).min(1, 'At least one item is required'),
+    notes: z.string().optional().nullable(),
+  })
+  .refine(
+    (data) => data.dateType !== DateType.CONTRACT_PERIOD || data.toDate != null,
+    { message: 'To Date is required for a contract period.', path: ['toDate'] }
+  )
+  .refine(
+    (data) => data.dateType !== DateType.CONTRACT_PERIOD || !data.toDate || data.toDate >= data.issueDate,
+    { message: 'From Date cannot be later than To Date.', path: ['toDate'] }
+  );
 
 export const PaymentSchema = z.object({
   invoiceId: z.string().uuid(),
