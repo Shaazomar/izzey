@@ -148,7 +148,9 @@ export async function createQuotation(data: any) {
           quoteNumber,
           customerId: validatedData.customerId,
           propertyId: resolvedPropertyId,
+          dateType: validatedData.dateType,
           date: validatedData.date,
+          toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
           validUntil: validatedData.validUntil,
           status: validatedData.status,
           subtotal,
@@ -243,7 +245,9 @@ export async function updateQuotation(id: string, data: any) {
         data: {
           customerId: validatedData.customerId,
           propertyId: resolvedPropertyId,
+          dateType: validatedData.dateType,
           date: validatedData.date,
+          toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
           validUntil: validatedData.validUntil,
           status: validatedData.status,
           subtotal,
@@ -298,6 +302,7 @@ export async function duplicateQuotation(id: string) {
     }
 
     const quoteNumber = await generateQuoteNumber();
+    const isContractPeriod = sourceQuote.dateType === 'CONTRACT_PERIOD';
 
     const newQuote = await prisma.$transaction(async (tx) => {
       return tx.quotation.create({
@@ -305,7 +310,11 @@ export async function duplicateQuotation(id: string) {
           quoteNumber,
           customerId: sourceQuote.customerId,
           propertyId: sourceQuote.propertyId,
-          date: new Date(),
+          dateType: sourceQuote.dateType,
+          // A contract period is a fixed date range, so it carries over as-is;
+          // a single date resets to today like before.
+          date: isContractPeriod ? sourceQuote.date : new Date(),
+          toDate: isContractPeriod ? sourceQuote.toDate : null,
           validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days valid
           status: QuotationStatus.DRAFT,
           subtotal: sourceQuote.subtotal,
@@ -343,7 +352,13 @@ export async function duplicateQuotation(id: string) {
 
 export async function convertQuoteToInvoice(
   quoteId: string,
-  customData?: { invoiceNumber?: string; issueDate?: Date; dueDate?: Date }
+  customData?: {
+    invoiceNumber?: string;
+    issueDate?: Date;
+    dueDate?: Date;
+    dateType?: 'SINGLE_DATE' | 'CONTRACT_PERIOD';
+    toDate?: Date | null;
+  }
 ) {
   try {
     const quote = await prisma.quotation.findUnique({
@@ -356,7 +371,11 @@ export async function convertQuoteToInvoice(
     }
 
     const invoiceNumber = customData?.invoiceNumber || (await generateInvoiceNumber());
-    const issueDate = customData?.issueDate || new Date();
+    // Defaults to the quotation's own date type/period when the caller doesn't override it.
+    const dateType = customData?.dateType || quote.dateType;
+    const issueDate =
+      customData?.issueDate || (dateType === 'CONTRACT_PERIOD' ? quote.date : new Date());
+    const toDate = dateType === 'CONTRACT_PERIOD' ? customData?.toDate || quote.toDate : null;
     const dueDate = customData?.dueDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
     const invoice = await prisma.$transaction(async (tx) => {
@@ -366,7 +385,9 @@ export async function convertQuoteToInvoice(
           invoiceNumber,
           quotationId: quote.id,
           customerId: quote.customerId,
+          dateType,
           issueDate,
+          toDate,
           dueDate,
           status: InvoiceStatus.DRAFT,
           subtotal: quote.subtotal,

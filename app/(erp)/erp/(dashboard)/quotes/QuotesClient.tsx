@@ -11,6 +11,7 @@ import StatusBadge from '@/components/erp/StatusBadge';
 import ActionMenu, { ActionMenuItem } from '@/components/erp/ActionMenu';
 import QuotationBuilder from '@/components/erp/QuotationBuilder';
 import ConvertInvoiceModal from '@/components/erp/ConvertInvoiceModal';
+import { formatDate, formatDateOrPeriod } from '@/lib/formatDate';
 
 interface QuotesClientProps {
   initialQuotes: any[];
@@ -216,10 +217,10 @@ export default function QuotesClient({ initialQuotes, customers }: QuotesClientP
                     <StatusBadge status={q.status} />
                   </td>
                   <td className="py-4 px-3 text-slate-500">
-                    {new Date(q.date).toLocaleDateString('de-DE')}
+                    {formatDateOrPeriod(q.dateType, q.date, q.toDate)}
                   </td>
                   <td className="py-4 px-3 text-slate-500">
-                    {new Date(q.validUntil).toLocaleDateString('de-DE')}
+                    {formatDate(q.validUntil)}
                   </td>
                   <td className="py-4 px-3 text-right shrink-0">
                       <div className="flex items-center justify-end gap-2">

@@ -11,6 +11,7 @@ import StatusBadge from '@/components/erp/StatusBadge';
 import ActionMenu, { ActionMenuItem } from '@/components/erp/ActionMenu';
 import InvoiceBuilder from '@/components/erp/InvoiceBuilder';
 import RecordPaymentModal from '@/components/erp/RecordPaymentModal';
+import { formatDate, formatDateOrPeriod } from '@/lib/formatDate';
 
 interface InvoicesClientProps {
   initialInvoices: any[];
@@ -208,10 +209,10 @@ export default function InvoicesClient({ initialInvoices, customers }: InvoicesC
                       <StatusBadge status={inv.status} />
                     </td>
                     <td className="py-4 px-3 text-slate-500">
-                      {new Date(inv.issueDate).toLocaleDateString('de-DE')}
+                      {formatDateOrPeriod(inv.dateType, inv.issueDate, inv.toDate)}
                     </td>
                     <td className="py-4 px-3 text-slate-500">
-                      {new Date(inv.dueDate).toLocaleDateString('de-DE')}
+                      {formatDate(inv.dueDate)}
                     </td>
                      <td className="py-4 px-3 text-right shrink-0">
                       <div className="flex items-center justify-end gap-2">

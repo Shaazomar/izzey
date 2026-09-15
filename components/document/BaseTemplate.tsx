@@ -21,7 +21,9 @@ export interface DocumentItemData {
 export interface DocumentData {
   type: 'quotation' | 'invoice';
   number: string;
+  dateType?: 'SINGLE_DATE' | 'CONTRACT_PERIOD';
   date: Date | string;
+  toDate?: Date | string | null;
   serviceDate?: Date | string | null;
   dueDate?: Date | string | null;
   validUntil?: Date | string | null;
@@ -70,7 +72,9 @@ export default function BaseTemplate({ data }: BaseTemplateProps) {
         <Header
           type={data.type}
           number={data.number}
+          dateType={data.dateType}
           date={data.date}
+          toDate={data.toDate}
           serviceDate={data.serviceDate}
           validUntil={data.validUntil}
           dueDate={data.dueDate}

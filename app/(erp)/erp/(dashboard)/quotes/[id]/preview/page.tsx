@@ -57,7 +57,9 @@ export default async function QuotePreviewPage({ params }: QuotePreviewPageProps
   const documentData: DocumentData = {
     type: 'quotation',
     number: quote.quoteNumber,
+    dateType: quote.dateType,
     date: new Date(quote.date),
+    toDate: quote.toDate ? new Date(quote.toDate) : undefined,
     serviceDate: new Date(quote.date),
     validUntil: new Date(quote.validUntil),
     company,

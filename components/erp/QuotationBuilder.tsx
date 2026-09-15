@@ -163,7 +163,9 @@ export default function QuotationBuilder({
 
   // Quotation Config
   const [quoteNumber, setQuoteNumber] = useState(() => `Q-${new Date().getFullYear()}-0001`);
+  const [dateType, setDateType] = useState<'SINGLE_DATE' | 'CONTRACT_PERIOD'>('SINGLE_DATE');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [serviceDate, setServiceDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [validUntil, setValidUntil] = useState(() => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [currency, setCurrency] = useState('EUR');
@@ -194,7 +196,9 @@ export default function QuotationBuilder({
       setSelectedCustomerId(quoteToEdit.customerId);
       setSelectedPropertyId(quoteToEdit.propertyId || '');
       setQuoteNumber(quoteToEdit.quoteNumber || 'Q-2026-0001');
+      setDateType(quoteToEdit.dateType || 'SINGLE_DATE');
       setDate(new Date(quoteToEdit.date).toISOString().split('T')[0]);
+      setToDate(quoteToEdit.toDate ? new Date(quoteToEdit.toDate).toISOString().split('T')[0] : new Date(quoteToEdit.date).toISOString().split('T')[0]);
       setServiceDate(quoteToEdit.serviceDate ? new Date(quoteToEdit.serviceDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
       setValidUntil(new Date(quoteToEdit.validUntil).toISOString().split('T')[0]);
       setNotes(quoteToEdit.notes || '');
@@ -238,7 +242,9 @@ export default function QuotationBuilder({
         setCustPropertyAddress(defaultCust.properties?.[0]?.address || defaultCust.address || '');
       }
       setQuoteNumber(`Q-${new Date().getFullYear()}-0001`);
+      setDateType('SINGLE_DATE');
       setDate(new Date().toISOString().split('T')[0]);
+      setToDate(new Date().toISOString().split('T')[0]);
       setServiceDate(new Date().toISOString().split('T')[0]);
       setValidUntil(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
       setNotes('Dieses Angebot ist freibleibend. Es gelten unsere allgemeinen Geschäftsbedingungen.');
@@ -351,10 +357,18 @@ export default function QuotationBuilder({
       return;
     }
 
+    if (dateType === 'CONTRACT_PERIOD' && new Date(toDate) < new Date(date)) {
+      setError('From Date cannot be later than To Date.');
+      setLoading(false);
+      return;
+    }
+
     const payload = {
       customerId: selectedCustomerId,
       propertyId: selectedPropertyId || customers.find((c) => c.id === selectedCustomerId)?.properties?.[0]?.id,
+      dateType,
       date: new Date(date),
+      toDate: dateType === 'CONTRACT_PERIOD' ? new Date(toDate) : null,
       validUntil: new Date(validUntil),
       status: targetStatus || status,
       items: items.map((it) => ({
@@ -392,7 +406,9 @@ export default function QuotationBuilder({
   const liveDocumentData: DocumentData = {
     type: 'quotation',
     number: quoteNumber,
+    dateType,
     date: date ? new Date(date) : new Date(),
+    toDate: dateType === 'CONTRACT_PERIOD' && toDate ? new Date(toDate) : undefined,
     serviceDate: serviceDate ? new Date(serviceDate) : undefined,
     validUntil: validUntil ? new Date(validUntil) : undefined,
     language,
@@ -621,24 +637,67 @@ export default function QuotationBuilder({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Date</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setDate(newDate);
-                    if (newDate) {
-                      const d = new Date(newDate);
-                      if (!isNaN(d.getTime())) {
-                        const validDate = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
-                        setValidUntil(validDate.toISOString().split('T')[0]);
-                      }
-                    }
-                  }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
-                />
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Date Type</label>
+                <select
+                  value={dateType}
+                  onChange={(e) => setDateType(e.target.value as 'SINGLE_DATE' | 'CONTRACT_PERIOD')}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-blue-700 focus:outline-none"
+                >
+                  <option value="SINGLE_DATE">Single Date</option>
+                  <option value="CONTRACT_PERIOD">Contract Period</option>
+                </select>
               </div>
+
+              {dateType === 'SINGLE_DATE' ? (
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      setDate(newDate);
+                      if (newDate) {
+                        const d = new Date(newDate);
+                        if (!isNaN(d.getTime())) {
+                          const validDate = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
+                          setValidUntil(validDate.toISOString().split('T')[0]);
+                        }
+                      }
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">From Date</label>
+                    <input
+                      type="date"
+                      value={date}
+                      max={toDate || undefined}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">To Date</label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      min={date || undefined}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                </>
+              )}
+
+              {dateType === 'CONTRACT_PERIOD' && new Date(toDate) < new Date(date) && (
+                <div className="col-span-2 sm:col-span-3 text-[10px] font-bold text-rose-600 -mt-1">
+                  From Date cannot be later than To Date.
+                </div>
+              )}
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Service Date</label>

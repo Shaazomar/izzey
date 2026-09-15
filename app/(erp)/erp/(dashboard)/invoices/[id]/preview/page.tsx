@@ -57,7 +57,9 @@ export default async function InvoicePreviewPage({ params }: InvoicePreviewPageP
   const documentData: DocumentData = {
     type: 'invoice',
     number: invoice.invoiceNumber,
+    dateType: invoice.dateType,
     date: new Date(invoice.issueDate),
+    toDate: invoice.toDate ? new Date(invoice.toDate) : undefined,
     serviceDate: new Date(invoice.issueDate),
     dueDate: new Date(invoice.dueDate),
     company,
