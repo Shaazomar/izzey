@@ -8,7 +8,7 @@ import {
   CreditCard, Receipt, BarChart3, PieChart, Settings, LogOut, 
   Search, Menu, X, Bell, Plus, ChevronDown, ChevronRight, ChevronLeft,
   Zap, Landmark, AreaChart, ToggleLeft, ToggleRight, Sparkles, Building2,
-  Mail, File
+  Mail, File, UserCog
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -58,6 +58,12 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
       ]
     },
     {
+      title: 'OPERATIONS',
+      items: [
+        { name: 'Jobs', path: '/erp/jobs', icon: Building2, roles: ['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT', 'EMPLOYEE'] },
+      ]
+    },
+    {
       title: 'FINANCE',
       items: [
         { name: 'Payments', path: '/erp/payments', icon: CreditCard, roles: ['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT'] },
@@ -74,6 +80,7 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
       title: 'SETTINGS',
       items: [
         { name: 'Settings', path: '/erp/settings', icon: Settings, roles: ['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT'] },
+        { name: 'Team', path: '/erp/users', icon: UserCog, roles: ['SUPER_ADMIN', 'ADMIN'] },
       ]
     }
   ];

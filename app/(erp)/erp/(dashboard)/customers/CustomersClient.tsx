@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createCustomer, addProperty, deleteCustomer, deleteProperty } from '@/app/actions/customers';
-import { Plus, Search, Building, User, Mail, Phone, MapPin, X, Trash2, Eye } from 'lucide-react';
+import { createCustomer, updateCustomer, addProperty, deleteCustomer, deleteProperty } from '@/app/actions/customers';
+import { Plus, Search, Building, User, Mail, Phone, MapPin, X, Trash2, Eye, Pencil } from 'lucide-react';
 
 interface CustomersClientProps {
   initialCustomers: any[];
@@ -12,31 +12,55 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
   const [customers, setCustomers] = useState(initialCustomers);
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  
+
   // Modals state
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
   const [propertyModalOpen, setPropertyModalOpen] = useState(false);
   const [error, setError] = useState('');
 
   // Search filter
-  const filteredCustomers = customers.filter(c => 
+  const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     (c.companyName && c.companyName.toLowerCase().includes(search.toLowerCase())) ||
     c.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreateCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleOpenCreate = () => {
+    setEditingCustomer(null);
+    setError('');
+    setCustomerModalOpen(true);
+  };
+
+  const handleOpenEdit = (customer: any) => {
+    setEditingCustomer(customer);
+    setError('');
+    setCustomerModalOpen(true);
+  };
+
+  const handleSubmitCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData.entries());
-    
-    const res = await createCustomer(data);
+
+    const res = editingCustomer
+      ? await updateCustomer(editingCustomer.id, data)
+      : await createCustomer(data);
+
     if (res.success && res.data) {
-      setCustomers([res.data, ...customers]);
+      if (editingCustomer) {
+        setCustomers(customers.map((c) => (c.id === res.data.id ? { ...c, ...res.data } : c)));
+        if (selectedCustomer?.id === res.data.id) {
+          setSelectedCustomer({ ...selectedCustomer, ...res.data });
+        }
+      } else {
+        setCustomers([res.data, ...customers]);
+      }
       setCustomerModalOpen(false);
+      setEditingCustomer(null);
     } else {
-      setError(res.error || 'Failed to create customer');
+      setError(res.error || `Failed to ${editingCustomer ? 'update' : 'create'} customer`);
     }
   };
 
@@ -103,10 +127,7 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
         </div>
 
         <button
-          onClick={() => {
-            setError('');
-            setCustomerModalOpen(true);
-          }}
+          onClick={handleOpenCreate}
           className="bg-accent text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#CC5833]/90 transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
@@ -164,6 +185,13 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => handleOpenEdit(c)}
+                        className="p-1.5 rounded-lg hover:bg-black/5 text-dark/60 hover:text-dark transition-all inline-flex items-center"
+                        title="Edit Customer"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleDeleteCustomer(c.id)}
                         className="p-1.5 rounded-lg hover:bg-red-50 text-red-500/60 hover:text-red-600 transition-all inline-flex items-center"
                       >
@@ -189,12 +217,21 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
           {selectedCustomer ? (
             <div className="bg-[#EAE8E2] border border-black/5 rounded-3xl p-6 shadow-sm space-y-6 relative animate-fade-in">
               
-              <button 
-                onClick={() => setSelectedCustomer(null)}
-                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-black/5 text-dark/40 hover:text-dark"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="absolute top-4 right-4 flex items-center gap-1">
+                <button
+                  onClick={() => handleOpenEdit(selectedCustomer)}
+                  className="p-1.5 rounded-lg hover:bg-black/5 text-dark/40 hover:text-dark"
+                  title="Edit Customer"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setSelectedCustomer(null)}
+                  className="p-1.5 rounded-lg hover:bg-black/5 text-dark/40 hover:text-dark"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
               <div className="space-y-2 pt-2">
                 <p className="text-[10px] font-bold font-mono text-dark/40 tracking-widest uppercase">CUSTOMER SUMMARY</p>
@@ -304,67 +341,72 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-[#EAE8E2] rounded-3xl p-8 shadow-2xl border border-black/5 relative animate-scale-up font-body text-dark">
             <button
-              onClick={() => setCustomerModalOpen(false)}
+              onClick={() => {
+                setCustomerModalOpen(false);
+                setEditingCustomer(null);
+              }}
               className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-black/5 text-dark/40"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="font-heading font-extrabold text-xl mb-6">Create Customer Profile</h3>
-            
-            <form onSubmit={handleCreateCustomer} className="space-y-4">
+            <h3 className="font-heading font-extrabold text-xl mb-6">
+              {editingCustomer ? `Edit Customer: ${editingCustomer.name}` : 'Create Customer Profile'}
+            </h3>
+
+            <form onSubmit={handleSubmitCustomer} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">NAME</label>
-                  <input type="text" name="name" required className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="John Doe" />
+                  <input type="text" name="name" required defaultValue={editingCustomer?.name || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="John Doe" />
                 </div>
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">COMPANY NAME</label>
-                  <input type="text" name="companyName" className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Optional" />
+                  <input type="text" name="companyName" defaultValue={editingCustomer?.companyName || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Optional" />
                 </div>
               </div>
 
               <div className="flex flex-col space-y-1">
                 <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">EMAIL ADDRESS</label>
-                <input type="email" name="email" required className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="john@example.com" />
+                <input type="email" name="email" required defaultValue={editingCustomer?.email || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="john@example.com" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">PHONE NUMBER</label>
-                  <input type="text" name="phone" className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="+49..." />
+                  <input type="text" name="phone" defaultValue={editingCustomer?.phone || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="+49..." />
                 </div>
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">VAT NUMBER (USt-IdNr.)</label>
-                  <input type="text" name="vatNumber" className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="e.g. DE123..." />
+                  <input type="text" name="vatNumber" defaultValue={editingCustomer?.vatNumber || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="e.g. DE123..." />
                 </div>
               </div>
 
               <div className="flex flex-col space-y-1">
                 <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">STREET ADDRESS</label>
-                <input type="text" name="address" required className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Alt Moabit 58" />
+                <input type="text" name="address" required defaultValue={editingCustomer?.address || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Alt Moabit 58" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">CITY</label>
-                  <input type="text" name="city" required className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Berlin" />
+                  <input type="text" name="city" required defaultValue={editingCustomer?.city || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Berlin" />
                 </div>
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">COUNTRY</label>
-                  <input type="text" name="country" required defaultValue="Germany" className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" />
+                  <input type="text" name="country" required defaultValue={editingCustomer?.country || 'Germany'} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" />
                 </div>
               </div>
 
               <div className="flex flex-col space-y-1">
                 <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">INTERNAL NOTES</label>
-                <textarea name="notes" rows={2} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Additional parameters..."></textarea>
+                <textarea name="notes" rows={2} defaultValue={editingCustomer?.notes || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Additional parameters..."></textarea>
               </div>
 
               {error && <div className="text-red-500 text-xs text-center font-mono">{error}</div>}
 
               <button type="submit" className="w-full bg-[#CC5833] hover:bg-[#CC5833]/90 text-white rounded-xl py-3 text-xs font-bold tracking-wide transition-colors">
-                SAVE CUSTOMER PROFILE
+                {editingCustomer ? 'SAVE CHANGES' : 'SAVE CUSTOMER PROFILE'}
               </button>
             </form>
           </div>

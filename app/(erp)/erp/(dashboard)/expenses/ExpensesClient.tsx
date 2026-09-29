@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createExpense, deleteExpense } from '@/app/actions/expenses';
-import { Plus, Search, Trash2, Calendar, CreditCard, Check, X, Filter } from 'lucide-react';
+import { createExpense, updateExpense, deleteExpense } from '@/app/actions/expenses';
+import { Plus, Search, Trash2, Calendar, CreditCard, Check, X, Filter, Pencil } from 'lucide-react';
 import { ExpenseCategory } from '@prisma/client';
 
 interface ExpensesClientProps {
@@ -13,9 +13,10 @@ export default function ExpensesClient({ initialExpenses }: ExpensesClientProps)
   const [expenses, setExpenses] = useState(initialExpenses);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
-  
+
   // Modals state
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any | null>(null);
   const [error, setError] = useState('');
 
   // Categories list
@@ -23,18 +24,30 @@ export default function ExpensesClient({ initialExpenses }: ExpensesClientProps)
 
   // Filter expenses
   const filteredExpenses = expenses.filter(exp => {
-    const matchesSearch = exp.vendor.toLowerCase().includes(search.toLowerCase()) || 
+    const matchesSearch = exp.vendor.toLowerCase().includes(search.toLowerCase()) ||
                           (exp.notes && exp.notes.toLowerCase().includes(search.toLowerCase()));
     const matchesCategory = categoryFilter === 'ALL' || exp.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
-  const handleCreateExpense = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleOpenCreate = () => {
+    setEditingExpense(null);
+    setError('');
+    setExpenseModalOpen(true);
+  };
+
+  const handleOpenEdit = (expense: any) => {
+    setEditingExpense(expense);
+    setError('');
+    setExpenseModalOpen(true);
+  };
+
+  const handleSubmitExpense = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     const formData = new FormData(e.currentTarget);
     const rawData = Object.fromEntries(formData.entries());
-    
+
     const payload = {
       vendor: rawData.vendor,
       category: rawData.category,
@@ -45,12 +58,20 @@ export default function ExpensesClient({ initialExpenses }: ExpensesClientProps)
       isOfficial: rawData.isOfficial === 'on',
     };
 
-    const res = await createExpense(payload);
+    const res = editingExpense
+      ? await updateExpense(editingExpense.id, payload)
+      : await createExpense(payload);
+
     if (res.success && res.data) {
-      setExpenses([res.data, ...expenses]);
+      if (editingExpense) {
+        setExpenses(expenses.map((exp) => (exp.id === res.data.id ? res.data : exp)));
+      } else {
+        setExpenses([res.data, ...expenses]);
+      }
       setExpenseModalOpen(false);
+      setEditingExpense(null);
     } else {
-      setError(res.error || 'Failed to record expense');
+      setError(res.error || `Failed to ${editingExpense ? 'update' : 'record'} expense`);
     }
   };
 
@@ -94,10 +115,7 @@ export default function ExpensesClient({ initialExpenses }: ExpensesClientProps)
         </div>
 
         <button
-          onClick={() => {
-            setError('');
-            setExpenseModalOpen(true);
-          }}
+          onClick={handleOpenCreate}
           className="bg-accent text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#CC5833]/90 transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
@@ -150,7 +168,14 @@ export default function ExpensesClient({ initialExpenses }: ExpensesClientProps)
                   <td className="py-4 pr-2 font-bold text-sm text-dark">
                     €{Number(exp.amount).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
-                  <td className="py-4 text-right">
+                  <td className="py-4 text-right space-x-1">
+                    <button
+                      onClick={() => handleOpenEdit(exp)}
+                      className="p-1.5 rounded-lg hover:bg-black/5 text-dark/60 hover:text-dark transition-all inline-flex items-center"
+                      title="Edit Expense"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleDeleteExpense(exp.id)}
                       className="p-1.5 rounded-lg hover:bg-red-50 text-red-500/60 hover:text-red-600 transition-all inline-flex items-center"
@@ -178,34 +203,39 @@ export default function ExpensesClient({ initialExpenses }: ExpensesClientProps)
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-[#EAE8E2] rounded-3xl p-8 shadow-2xl border border-black/5 relative animate-scale-up font-body text-dark">
             <button
-              onClick={() => setExpenseModalOpen(false)}
+              onClick={() => {
+                setExpenseModalOpen(false);
+                setEditingExpense(null);
+              }}
               className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-black/5 text-dark/40"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="font-heading font-extrabold text-xl mb-6">Record Expense Outflow</h3>
-            
-            <form onSubmit={handleCreateExpense} className="space-y-4">
+            <h3 className="font-heading font-extrabold text-xl mb-6">
+              {editingExpense ? `Edit Expense: ${editingExpense.vendor}` : 'Record Expense Outflow'}
+            </h3>
+
+            <form onSubmit={handleSubmitExpense} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">VENDOR NAME</label>
-                  <input type="text" name="vendor" required className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Aral, Bauhaus, etc." />
+                  <input type="text" name="vendor" required defaultValue={editingExpense?.vendor || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Aral, Bauhaus, etc." />
                 </div>
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">OUTFLOW AMOUNT (€)</label>
-                  <input type="number" name="amount" required min="0.01" step="any" className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent font-mono" placeholder="0.00" />
+                  <input type="number" name="amount" required min="0.01" step="any" defaultValue={editingExpense ? Number(editingExpense.amount) : undefined} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent font-mono" placeholder="0.00" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">EXPENSE DATE</label>
-                  <input type="date" name="date" required defaultValue={new Date().toISOString().split('T')[0]} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none" />
+                  <input type="date" name="date" required defaultValue={editingExpense ? new Date(editingExpense.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none" />
                 </div>
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">EXPENSE CATEGORY</label>
-                  <select name="category" required defaultValue="FUEL" className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none cursor-pointer">
+                  <select name="category" required defaultValue={editingExpense?.category || 'FUEL'} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none cursor-pointer">
                     {categories.map(cat => (
                       <option key={cat} value={cat}>{cat.replace('_', ' ')}</option>
                     ))}
@@ -215,22 +245,22 @@ export default function ExpensesClient({ initialExpenses }: ExpensesClientProps)
 
               <div className="flex flex-col space-y-1">
                 <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">PAYMENT METHOD</label>
-                <input type="text" name="paymentMethod" required defaultValue="Bank Transfer" className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none" placeholder="Cash, Card, Bank Transfer" />
+                <input type="text" name="paymentMethod" required defaultValue={editingExpense?.paymentMethod || 'Bank Transfer'} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none" placeholder="Cash, Card, Bank Transfer" />
               </div>
 
               <div className="flex flex-col space-y-1">
                 <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">EXPENSE NOTES</label>
-                <textarea name="notes" rows={2} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none" placeholder="Description parameters..."></textarea>
+                <textarea name="notes" rows={2} defaultValue={editingExpense?.notes || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none" placeholder="Description parameters..."></textarea>
               </div>
 
               {/* isOfficial Checkbox */}
               <div className="flex items-center gap-2 p-3 bg-background border border-black/5 rounded-xl">
-                <input 
-                  type="checkbox" 
-                  name="isOfficial" 
-                  id="isOfficial" 
-                  defaultChecked
-                  className="w-4 h-4 accent-accent cursor-pointer rounded" 
+                <input
+                  type="checkbox"
+                  name="isOfficial"
+                  id="isOfficial"
+                  defaultChecked={editingExpense ? editingExpense.isOfficial : true}
+                  className="w-4 h-4 accent-accent cursor-pointer rounded"
                 />
                 <label htmlFor="isOfficial" className="text-xs font-bold text-dark/70 cursor-pointer select-none">
                   Official Financial Books (Tax-deductible)
@@ -240,7 +270,7 @@ export default function ExpensesClient({ initialExpenses }: ExpensesClientProps)
               {error && <div className="text-red-500 text-xs text-center font-mono">{error}</div>}
 
               <button type="submit" className="w-full bg-[#CC5833] hover:bg-[#CC5833]/90 text-white rounded-xl py-3.5 text-xs font-bold tracking-widest uppercase transition-colors shadow-md">
-                RECORD EXPENSE
+                {editingExpense ? 'SAVE CHANGES' : 'RECORD EXPENSE'}
               </button>
             </form>
           </div>
