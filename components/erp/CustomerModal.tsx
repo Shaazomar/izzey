@@ -27,7 +27,7 @@ export default function CustomerModal({ isOpen, onClose, onSuccess }: CustomerMo
     const payload = {
       name: data.name as string,
       email: data.email as string,
-      phone: data.phone as string,
+      phone: (data.phone as string) || undefined,
       companyName: (data.companyName as string) || undefined,
       notes: (data.notes as string) || undefined,
       address: (data.address as string) || 'Alt-Moabit 58',
@@ -104,11 +104,10 @@ export default function CustomerModal({ isOpen, onClose, onSuccess }: CustomerMo
               />
             </div>
             <div>
-              <label className="block text-slate-500 font-bold uppercase mb-1">Phone *</label>
+              <label className="block text-slate-500 font-bold uppercase mb-1">Phone</label>
               <input
                 name="phone"
                 type="text"
-                required
                 placeholder="+49 176 1234 5678"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:bg-white focus:border-[#2E4036] font-bold transition-all"
               />

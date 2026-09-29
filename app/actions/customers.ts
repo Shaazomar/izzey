@@ -106,12 +106,24 @@ export async function createCustomer(data: any) {
 export async function updateCustomer(id: string, data: any) {
   try {
     const validatedData = CustomerSchema.parse(data);
-    
+    const normalizedEmail = validatedData.email.toLowerCase();
+
+    // Check if another customer already uses this email
+    const existing = await prisma.customer.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (existing && existing.id !== id) {
+      return { success: false, error: 'A customer with this email already exists.' };
+    }
+
     const customer = await prisma.customer.update({
       where: { id },
       data: {
         ...validatedData,
-        email: validatedData.email.toLowerCase(),
+        email: normalizedEmail,
+      },
+      include: {
+        properties: { orderBy: { createdAt: 'desc' } },
       },
     });
 

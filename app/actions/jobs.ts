@@ -38,7 +38,7 @@ export async function getJobs(status?: JobStatus) {
 export async function createJob(data: any) {
   try {
     const validatedData = JobSchema.parse(data);
-    
+
     const job = await prisma.$transaction(async (tx) => {
       const createdJob = await tx.job.create({
         data: {
@@ -72,7 +72,28 @@ export async function createJob(data: any) {
         },
       });
 
-      return createdJob;
+      // Re-fetch with the same shape getJobs() returns, so the UI can render
+      // the new row immediately without a stale/incomplete object.
+      return tx.job.findUniqueOrThrow({
+        where: { id: createdJob.id },
+        include: {
+          quotation: {
+            include: {
+              customer: true,
+              property: true,
+            },
+          },
+          assignments: {
+            include: {
+              employee: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+          images: true,
+          managementCost: true,
+        },
+      });
     });
 
     revalidatePath('/erp/jobs');

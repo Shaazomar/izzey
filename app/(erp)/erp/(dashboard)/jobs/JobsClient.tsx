@@ -1,31 +1,60 @@
 'use client';
 
 import React, { useState } from 'react';
-import { updateJobStatus, updateJobAssignments, saveManagementCosts, uploadJobImage } from '@/app/actions/jobs';
+import { createJob, updateJobStatus, updateJobAssignments, saveManagementCosts, uploadJobImage } from '@/app/actions/jobs';
 import { useSession } from 'next-auth/react';
-import { 
-  Calendar, CheckCircle2, Play, AlertCircle, XCircle, Plus, Eye, X, 
-  UserPlus, Upload, ShieldAlert, Euro, Image as ImageIcon 
+import {
+  Calendar, CheckCircle2, Play, AlertCircle, XCircle, Plus, Eye, X,
+  UserPlus, Upload, ShieldAlert, Euro, Image as ImageIcon
 } from 'lucide-react';
 import { JobStatus, JobImageType } from '@prisma/client';
 
 interface JobsClientProps {
   initialJobs: any[];
   employees: any[];
+  quotes: any[];
 }
 
-export default function JobsClient({ initialJobs, employees }: JobsClientProps) {
+export default function JobsClient({ initialJobs, employees, quotes }: JobsClientProps) {
   const [jobs, setJobs] = useState(initialJobs);
   const [selectedJob, setSelectedJob] = useState<any>(null);
-  
+
   // Modals state
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [costsModalOpen, setCostsModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [error, setError] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const { data: session } = useSession();
   const userRole = session?.user?.role || 'EMPLOYEE';
+
+  const handleCreateJob = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setCreateError('');
+    setCreating(true);
+    const formData = new FormData(e.currentTarget);
+    const employeeIds = formData.getAll('employeeIds') as string[];
+
+    const payload = {
+      quotationId: (formData.get('quotationId') as string) || undefined,
+      startDate: new Date(formData.get('startDate') as string),
+      notes: (formData.get('notes') as string) || undefined,
+      employeeIds,
+    };
+
+    const res = await createJob(payload);
+    setCreating(false);
+
+    if (res.success && res.data) {
+      setJobs([res.data, ...jobs]);
+      setCreateModalOpen(false);
+    } else {
+      setCreateError(res.error || 'Failed to create job');
+    }
+  };
 
   const handleUpdateStatus = async (id: string, status: JobStatus) => {
     const res = await updateJobStatus(id, status);
@@ -111,8 +140,22 @@ export default function JobsClient({ initialJobs, employees }: JobsClientProps) 
         
         {/* Left Column: Jobs List */}
         <div className="bg-[#EAE8E2] border border-black/5 rounded-3xl p-6 shadow-sm xl:col-span-2 space-y-4 text-dark">
-          <h2 className="font-heading font-extrabold text-lg">JOBS SCHEDULE</h2>
-          
+          <div className="flex justify-between items-center">
+            <h2 className="font-heading font-extrabold text-lg">JOBS SCHEDULE</h2>
+            {userRole !== 'EMPLOYEE' && (
+              <button
+                onClick={() => {
+                  setCreateError('');
+                  setCreateModalOpen(true);
+                }}
+                className="bg-accent text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#CC5833]/90 transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Job</span>
+              </button>
+            )}
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-mono select-none">
               <thead>
@@ -330,6 +373,77 @@ export default function JobsClient({ initialJobs, employees }: JobsClientProps) 
         </div>
 
       </div>
+
+      {/* New Job Modal */}
+      {createModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[#EAE8E2] rounded-3xl p-8 shadow-2xl border border-black/5 relative animate-scale-up font-body text-dark">
+            <button
+              onClick={() => setCreateModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-black/5 text-dark/40"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="font-heading font-extrabold text-xl mb-6">Schedule New Job</h3>
+
+            <form onSubmit={handleCreateJob} className="space-y-4">
+              <div className="flex flex-col space-y-1">
+                <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">Source Quotation</label>
+                <select
+                  name="quotationId"
+                  className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none cursor-pointer"
+                >
+                  <option value="">No linked quotation</option>
+                  {quotes.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.quoteNumber} — {q.customer?.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">Start Date</label>
+                <input
+                  type="date"
+                  name="startDate"
+                  required
+                  defaultValue={new Date().toISOString().split('T')[0]}
+                  className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none"
+                />
+              </div>
+
+              <div className="flex flex-col space-y-1.5 max-h-48 overflow-y-auto">
+                <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase mb-1">Assign Employees (Optional)</label>
+                {employees.map((emp) => (
+                  <div key={emp.id} className="flex items-center gap-2.5 p-2 bg-background border border-black/5 rounded-xl text-xs font-mono">
+                    <input
+                      type="checkbox"
+                      name="employeeIds"
+                      value={emp.id}
+                      id={`new-emp-${emp.id}`}
+                      className="w-4 h-4 accent-accent cursor-pointer"
+                    />
+                    <label htmlFor={`new-emp-${emp.id}`} className="cursor-pointer font-bold">{emp.name} ({emp.role})</label>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">Notes</label>
+                <textarea name="notes" rows={2} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none" placeholder="Special instructions, access codes..."></textarea>
+              </div>
+
+              {createError && <div className="text-red-500 text-xs text-center font-mono">{createError}</div>}
+
+              <button type="submit" disabled={creating} className="w-full bg-[#CC5833] hover:bg-[#CC5833]/90 text-white rounded-xl py-3 text-xs font-bold tracking-wide transition-colors disabled:opacity-60">
+                {creating ? 'SCHEDULING...' : 'SCHEDULE JOB'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Assign Employees Modal */}
       {assignModalOpen && (
