@@ -456,17 +456,17 @@ export default function InvoiceBuilder({
             type="button"
             onClick={() => handleSave()}
             disabled={loading}
-            className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+            className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4 text-slate-600" />
-            <span>Save</span>
+            <span>{loading ? 'Saving...' : 'Save Draft'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleSave('PAID')}
             disabled={loading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md flex items-center gap-2"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{loading ? 'Saving...' : 'Save Official Invoice'}</span>
