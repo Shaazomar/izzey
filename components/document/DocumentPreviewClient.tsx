@@ -2,22 +2,48 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import BaseTemplate, { DocumentData } from './BaseTemplate';
-import { Printer, Download, ArrowLeft } from 'lucide-react';
+import { Printer, Download, ArrowLeft, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { deleteQuotation } from '@/app/actions/quotes';
+import { deleteInvoice } from '@/app/actions/invoices';
 
 interface DocumentPreviewClientProps {
   data: DocumentData;
   backUrl: string;
+  documentId?: string;
 }
 
-export default function DocumentPreviewClient({ data, backUrl }: DocumentPreviewClientProps) {
+export default function DocumentPreviewClient({ data, backUrl, documentId }: DocumentPreviewClientProps) {
   const router = useRouter();
   const [scale, setScale] = useState(1);
+  const [deleting, setDeleting] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
       window.print();
+    }
+  };
+
+  const handleDelete = async () => {
+    const id = documentId || (data as any).id;
+    if (!id) return;
+    const docName = data.type === 'quotation' ? 'quotation' : 'invoice';
+    if (!confirm(`Are you sure you want to delete this ${docName} (${data.number})?`)) return;
+
+    setDeleting(true);
+    let res;
+    if (data.type === 'quotation') {
+      res = await deleteQuotation(id);
+    } else {
+      res = await deleteInvoice(id);
+    }
+    setDeleting(false);
+
+    if (res.success) {
+      router.push(backUrl);
+    } else {
+      alert(res.error || `Failed to delete ${docName}.`);
     }
   };
 
@@ -38,10 +64,8 @@ export default function DocumentPreviewClient({ data, backUrl }: DocumentPreview
     };
 
     window.addEventListener('resize', handleResize);
-    // Call once initially
     handleResize();
 
-    // Call with a small delay to make sure layout is parsed and rendered
     const timer = setTimeout(handleResize, 100);
 
     return () => {
@@ -72,6 +96,18 @@ export default function DocumentPreviewClient({ data, backUrl }: DocumentPreview
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Delete Button */}
+          {(documentId || (data as any).id) && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>{deleting ? 'Deleting...' : 'Delete'}</span>
+            </button>
+          )}
+
           {/* Print Button */}
           <button
             onClick={handlePrint}

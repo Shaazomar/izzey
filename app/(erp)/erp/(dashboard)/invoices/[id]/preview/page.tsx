@@ -77,6 +77,7 @@ export default async function InvoicePreviewPage({ params }: InvoicePreviewPageP
     <DocumentPreviewClient 
       data={serializedData} 
       backUrl="/erp/invoices" 
+      documentId={invoice.id}
     />
   );
 }

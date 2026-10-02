@@ -77,6 +77,7 @@ export default async function QuotePreviewPage({ params }: QuotePreviewPageProps
     <DocumentPreviewClient 
       data={serializedData} 
       backUrl="/erp/quotes" 
+      documentId={quote.id}
     />
   );
 }
