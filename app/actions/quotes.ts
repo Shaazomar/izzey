@@ -51,6 +51,7 @@ export async function getQuotes(query?: string) {
       include: {
         customer: true,
         property: true,
+        items: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -115,61 +116,69 @@ export async function createQuotation(data: any) {
 
     const grandTotal = subtotal + vatAmount;
 
-    const quotation = await prisma.$transaction(async (tx) => {
-      let resolvedPropertyId = validatedData.propertyId;
-      if (!resolvedPropertyId || resolvedPropertyId === "") {
-        const firstProperty = await tx.property.findFirst({
-          where: { customerId: validatedData.customerId }
-        });
-        if (firstProperty) {
-          resolvedPropertyId = firstProperty.id;
-        } else {
-          const customer = await tx.customer.findUnique({
-            where: { id: validatedData.customerId }
-          });
-          if (!customer) {
-            throw new Error('Customer not found.');
-          }
-          const newProperty = await tx.property.create({
-            data: {
-              customerId: customer.id,
-              address: customer.address || 'Alt-Moabit 58',
-              city: customer.city || 'Berlin',
-              postalCode: '10555',
-              country: customer.country || 'Germany',
-            }
-          });
-          resolvedPropertyId = newProperty.id;
-        }
-      }
-
-      return tx.quotation.create({
-        data: {
-          quoteNumber,
-          customerId: validatedData.customerId,
-          propertyId: resolvedPropertyId,
-          dateType: validatedData.dateType,
-          date: validatedData.date,
-          toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
-          validUntil: validatedData.validUntil,
-          status: validatedData.status,
-          subtotal,
-          vatAmount,
-          grandTotal,
-          notes: validatedData.notes,
-          items: {
-            create: itemsData,
-          },
-        },
-        include: {
-          customer: true,
-          property: true,
-          items: true,
-        },
+    // Resolve property before entering database transaction
+    let resolvedPropertyId = validatedData.propertyId;
+    if (!resolvedPropertyId || resolvedPropertyId === '') {
+      const firstProperty = await prisma.property.findFirst({
+        where: { customerId: validatedData.customerId },
       });
-    });
+      if (firstProperty) {
+        resolvedPropertyId = firstProperty.id;
+      } else {
+        const customer = await prisma.customer.findUnique({
+          where: { id: validatedData.customerId },
+        });
+        if (!customer) {
+          return { success: false, error: 'Customer not found.' };
+        }
+        const newProperty = await prisma.property.create({
+          data: {
+            customerId: customer.id,
+            address: customer.address || 'Alt-Moabit 58',
+            city: customer.city || 'Berlin',
+            postalCode: '10555',
+            country: customer.country || 'Germany',
+          },
+        });
+        resolvedPropertyId = newProperty.id;
+      }
+    }
 
-    revalidatePath('/erp/quotes');
+    const quotation = await prisma.$transaction(
+      async (tx) => {
+        return tx.quotation.create({
+          data: {
+            quoteNumber,
+            customerId: validatedData.customerId,
+            propertyId: resolvedPropertyId!,
+            dateType: validatedData.dateType,
+            date: validatedData.date,
+            toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
+            validUntil: validatedData.validUntil,
+            status: validatedData.status,
+            subtotal,
+            vatAmount,
+            grandTotal,
+            notes: validatedData.notes,
+            items: {
+              create: itemsData,
+            },
+          },
+          include: {
+            customer: true,
+            property: true,
+            items: true,
+          },
+        });
+      },
+      { timeout: 15000 }
+    );
+
+    try {
+      revalidatePath('/erp/quotes');
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: quotation };
   } catch (error: any) {
     console.error('Error creating quotation:', error);
@@ -207,67 +216,74 @@ export async function updateQuotation(id: string, data: any) {
 
     const grandTotal = subtotal + vatAmount;
 
-    const quotation = await prisma.$transaction(async (tx) => {
-      // Delete existing items
-      await tx.quotationItem.deleteMany({
-        where: { quotationId: id },
+    let resolvedPropertyId = validatedData.propertyId;
+    if (!resolvedPropertyId || resolvedPropertyId === '') {
+      const firstProperty = await prisma.property.findFirst({
+        where: { customerId: validatedData.customerId },
       });
-
-      let resolvedPropertyId = validatedData.propertyId;
-      if (!resolvedPropertyId || resolvedPropertyId === "") {
-        const firstProperty = await tx.property.findFirst({
-          where: { customerId: validatedData.customerId }
+      if (firstProperty) {
+        resolvedPropertyId = firstProperty.id;
+      } else {
+        const customer = await prisma.customer.findUnique({
+          where: { id: validatedData.customerId },
         });
-        if (firstProperty) {
-          resolvedPropertyId = firstProperty.id;
-        } else {
-          const customer = await tx.customer.findUnique({
-            where: { id: validatedData.customerId }
-          });
-          if (!customer) {
-            throw new Error('Customer not found.');
-          }
-          const newProperty = await tx.property.create({
-            data: {
-              customerId: customer.id,
-              address: customer.address || 'Alt-Moabit 58',
-              city: customer.city || 'Berlin',
-              postalCode: '10555',
-              country: customer.country || 'Germany',
-            }
-          });
-          resolvedPropertyId = newProperty.id;
+        if (!customer) {
+          return { success: false, error: 'Customer not found.' };
         }
-      }
-
-      return tx.quotation.update({
-        where: { id },
-        data: {
-          customerId: validatedData.customerId,
-          propertyId: resolvedPropertyId,
-          dateType: validatedData.dateType,
-          date: validatedData.date,
-          toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
-          validUntil: validatedData.validUntil,
-          status: validatedData.status,
-          subtotal,
-          vatAmount,
-          grandTotal,
-          notes: validatedData.notes,
-          items: {
-            create: itemsData,
+        const newProperty = await prisma.property.create({
+          data: {
+            customerId: customer.id,
+            address: customer.address || 'Alt-Moabit 58',
+            city: customer.city || 'Berlin',
+            postalCode: '10555',
+            country: customer.country || 'Germany',
           },
-        },
-        include: {
-          customer: true,
-          property: true,
-          items: true,
-        },
-      });
-    });
+        });
+        resolvedPropertyId = newProperty.id;
+      }
+    }
 
-    revalidatePath('/erp/quotes');
-    revalidatePath(`/erp/quotes/${id}`);
+    const quotation = await prisma.$transaction(
+      async (tx) => {
+        // Delete existing items
+        await tx.quotationItem.deleteMany({
+          where: { quotationId: id },
+        });
+
+        return tx.quotation.update({
+          where: { id },
+          data: {
+            customerId: validatedData.customerId,
+            propertyId: resolvedPropertyId!,
+            dateType: validatedData.dateType,
+            date: validatedData.date,
+            toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
+            validUntil: validatedData.validUntil,
+            status: validatedData.status,
+            subtotal,
+            vatAmount,
+            grandTotal,
+            notes: validatedData.notes,
+            items: {
+              create: itemsData,
+            },
+          },
+          include: {
+            customer: true,
+            property: true,
+            items: true,
+          },
+        });
+      },
+      { timeout: 15000 }
+    );
+
+    try {
+      revalidatePath('/erp/quotes');
+      revalidatePath(`/erp/quotes/${id}`);
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: quotation };
   } catch (error: any) {
     console.error('Error updating quotation:', error);
@@ -280,9 +296,14 @@ export async function updateQuoteStatus(id: string, status: QuotationStatus) {
     const quote = await prisma.quotation.update({
       where: { id },
       data: { status },
+      include: { customer: true, property: true, items: true },
     });
-    revalidatePath('/erp/quotes');
-    revalidatePath(`/erp/quotes/${id}`);
+    try {
+      revalidatePath('/erp/quotes');
+      revalidatePath(`/erp/quotes/${id}`);
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: quote };
   } catch (error: any) {
     console.error('Error updating quote status:', error);
@@ -304,45 +325,50 @@ export async function duplicateQuotation(id: string) {
     const quoteNumber = await generateQuoteNumber();
     const isContractPeriod = sourceQuote.dateType === 'CONTRACT_PERIOD';
 
-    const newQuote = await prisma.$transaction(async (tx) => {
-      return tx.quotation.create({
-        data: {
-          quoteNumber,
-          customerId: sourceQuote.customerId,
-          propertyId: sourceQuote.propertyId,
-          dateType: sourceQuote.dateType,
-          // A contract period is a fixed date range, so it carries over as-is;
-          // a single date resets to today like before.
-          date: isContractPeriod ? sourceQuote.date : new Date(),
-          toDate: isContractPeriod ? sourceQuote.toDate : null,
-          validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days valid
-          status: QuotationStatus.DRAFT,
-          subtotal: sourceQuote.subtotal,
-          vatAmount: sourceQuote.vatAmount,
-          grandTotal: sourceQuote.grandTotal,
-          notes: sourceQuote.notes,
-          items: {
-            create: sourceQuote.items.map((item) => ({
-              serviceName: item.serviceName,
-              description: item.description,
-              quantity: item.quantity,
-              unit: item.unit,
-              unitPrice: item.unitPrice,
-              discount: item.discount,
-              vatPercent: item.vatPercent,
-              total: item.total,
-            })),
+    const newQuote = await prisma.$transaction(
+      async (tx) => {
+        return tx.quotation.create({
+          data: {
+            quoteNumber,
+            customerId: sourceQuote.customerId,
+            propertyId: sourceQuote.propertyId,
+            dateType: sourceQuote.dateType,
+            date: isContractPeriod ? sourceQuote.date : new Date(),
+            toDate: isContractPeriod ? sourceQuote.toDate : null,
+            validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days valid
+            status: QuotationStatus.DRAFT,
+            subtotal: sourceQuote.subtotal,
+            vatAmount: sourceQuote.vatAmount,
+            grandTotal: sourceQuote.grandTotal,
+            notes: sourceQuote.notes,
+            items: {
+              create: sourceQuote.items.map((item) => ({
+                serviceName: item.serviceName,
+                description: item.description,
+                quantity: item.quantity,
+                unit: item.unit,
+                unitPrice: item.unitPrice,
+                discount: item.discount,
+                vatPercent: item.vatPercent,
+                total: item.total,
+              })),
+            },
           },
-        },
-        include: {
-          customer: true,
-          property: true,
-          items: true,
-        },
-      });
-    });
+          include: {
+            customer: true,
+            property: true,
+            items: true,
+          },
+        });
+      },
+      { timeout: 15000 }
+    );
 
-    revalidatePath('/erp/quotes');
+    try {
+      revalidatePath('/erp/quotes');
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: newQuote };
   } catch (error: any) {
     console.error('Error duplicating quote:', error);
@@ -371,55 +397,66 @@ export async function convertQuoteToInvoice(
     }
 
     const invoiceNumber = customData?.invoiceNumber || (await generateInvoiceNumber());
-    // Defaults to the quotation's own date type/period when the caller doesn't override it.
     const dateType = customData?.dateType || quote.dateType;
     const issueDate =
       customData?.issueDate || (dateType === 'CONTRACT_PERIOD' ? quote.date : new Date());
     const toDate = dateType === 'CONTRACT_PERIOD' ? customData?.toDate || quote.toDate : null;
     const dueDate = customData?.dueDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
-    const invoice = await prisma.$transaction(async (tx) => {
-      // 1. Create Invoice
-      const inv = await tx.invoice.create({
-        data: {
-          invoiceNumber,
-          quotationId: quote.id,
-          customerId: quote.customerId,
-          dateType,
-          issueDate,
-          toDate,
-          dueDate,
-          status: InvoiceStatus.DRAFT,
-          subtotal: quote.subtotal,
-          vatAmount: quote.vatAmount,
-          grandTotal: quote.grandTotal,
-          notes: quote.notes,
-          items: {
-            create: quote.items.map((item) => ({
-              serviceName: item.serviceName,
-              description: item.description,
-              quantity: item.quantity,
-              unit: item.unit,
-              unitPrice: item.unitPrice,
-              discount: item.discount,
-              vatPercent: item.vatPercent,
-              total: item.total,
-            })),
+    const invoice = await prisma.$transaction(
+      async (tx) => {
+        // 1. Create Invoice
+        const inv = await tx.invoice.create({
+          data: {
+            invoiceNumber,
+            quotationId: quote.id,
+            customerId: quote.customerId,
+            dateType,
+            issueDate,
+            toDate,
+            dueDate,
+            status: InvoiceStatus.DRAFT,
+            subtotal: quote.subtotal,
+            vatAmount: quote.vatAmount,
+            grandTotal: quote.grandTotal,
+            notes: quote.notes,
+            items: {
+              create: quote.items.map((item) => ({
+                serviceName: item.serviceName,
+                description: item.description,
+                quantity: item.quantity,
+                unit: item.unit,
+                unitPrice: item.unitPrice,
+                discount: item.discount,
+                vatPercent: item.vatPercent,
+                total: item.total,
+              })),
+            },
           },
-        },
-      });
+          include: {
+            customer: true,
+            items: true,
+            payments: true,
+          },
+        });
 
-      // 2. Mark Quote as Converted
-      await tx.quotation.update({
-        where: { id: quoteId },
-        data: { status: QuotationStatus.CONVERTED },
-      });
+        // 2. Mark Quote as Converted
+        await tx.quotation.update({
+          where: { id: quoteId },
+          data: { status: QuotationStatus.CONVERTED },
+        });
 
-      return inv;
-    });
+        return inv;
+      },
+      { timeout: 15000 }
+    );
 
-    revalidatePath('/erp/quotes');
-    revalidatePath('/erp/invoices');
+    try {
+      revalidatePath('/erp/quotes');
+      revalidatePath('/erp/invoices');
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: invoice };
   } catch (error: any) {
     console.error('Error converting quote to invoice:', error);
@@ -432,7 +469,11 @@ export async function deleteQuotation(id: string) {
     await prisma.quotation.delete({
       where: { id },
     });
-    revalidatePath('/erp/quotes');
+    try {
+      revalidatePath('/erp/quotes');
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true };
   } catch (error: any) {
     console.error('Error deleting quote:', error);

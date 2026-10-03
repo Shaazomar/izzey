@@ -49,6 +49,8 @@ export async function getInvoices(query?: string) {
         : undefined,
       include: {
         customer: true,
+        items: true,
+        payments: { orderBy: { paymentDate: 'desc' } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -112,29 +114,41 @@ export async function createInvoice(data: any) {
 
     const grandTotal = subtotal + vatAmount;
 
-    const invoice = await prisma.$transaction(async (tx) => {
-      return tx.invoice.create({
-        data: {
-          invoiceNumber,
-          quotationId: validatedData.quotationId,
-          customerId: validatedData.customerId,
-          dateType: validatedData.dateType,
-          issueDate: validatedData.issueDate,
-          toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
-          dueDate: validatedData.dueDate,
-          status: validatedData.status,
-          subtotal,
-          vatAmount,
-          grandTotal,
-          notes: validatedData.notes,
-          items: {
-            create: itemsData,
+    const invoice = await prisma.$transaction(
+      async (tx) => {
+        return tx.invoice.create({
+          data: {
+            invoiceNumber,
+            quotationId: validatedData.quotationId,
+            customerId: validatedData.customerId,
+            dateType: validatedData.dateType,
+            issueDate: validatedData.issueDate,
+            toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
+            dueDate: validatedData.dueDate,
+            status: validatedData.status,
+            subtotal,
+            vatAmount,
+            grandTotal,
+            notes: validatedData.notes,
+            items: {
+              create: itemsData,
+            },
           },
-        },
-      });
-    });
+          include: {
+            customer: true,
+            items: true,
+            payments: true,
+          },
+        });
+      },
+      { timeout: 15000 }
+    );
 
-    revalidatePath('/erp/invoices');
+    try {
+      revalidatePath('/erp/invoices');
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: invoice };
   } catch (error: any) {
     console.error('Error creating invoice:', error);
@@ -172,34 +186,46 @@ export async function updateInvoice(id: string, data: any) {
 
     const grandTotal = subtotal + vatAmount;
 
-    const invoice = await prisma.$transaction(async (tx) => {
-      await tx.invoiceItem.deleteMany({
-        where: { invoiceId: id },
-      });
+    const invoice = await prisma.$transaction(
+      async (tx) => {
+        await tx.invoiceItem.deleteMany({
+          where: { invoiceId: id },
+        });
 
-      return tx.invoice.update({
-        where: { id },
-        data: {
-          customerId: validatedData.customerId,
-          quotationId: validatedData.quotationId,
-          dateType: validatedData.dateType,
-          issueDate: validatedData.issueDate,
-          toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
-          dueDate: validatedData.dueDate,
-          status: validatedData.status,
-          subtotal,
-          vatAmount,
-          grandTotal,
-          notes: validatedData.notes,
-          items: {
-            create: itemsData,
+        return tx.invoice.update({
+          where: { id },
+          data: {
+            customerId: validatedData.customerId,
+            quotationId: validatedData.quotationId,
+            dateType: validatedData.dateType,
+            issueDate: validatedData.issueDate,
+            toDate: validatedData.dateType === 'CONTRACT_PERIOD' ? validatedData.toDate : null,
+            dueDate: validatedData.dueDate,
+            status: validatedData.status,
+            subtotal,
+            vatAmount,
+            grandTotal,
+            notes: validatedData.notes,
+            items: {
+              create: itemsData,
+            },
           },
-        },
-      });
-    });
+          include: {
+            customer: true,
+            items: true,
+            payments: true,
+          },
+        });
+      },
+      { timeout: 15000 }
+    );
 
-    revalidatePath('/erp/invoices');
-    revalidatePath(`/erp/invoices/${id}`);
+    try {
+      revalidatePath('/erp/invoices');
+      revalidatePath(`/erp/invoices/${id}`);
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: invoice };
   } catch (error: any) {
     console.error('Error updating invoice:', error);
@@ -211,52 +237,59 @@ export async function recordPayment(data: any) {
   try {
     const validatedData = PaymentSchema.parse(data);
 
-    const payment = await prisma.$transaction(async (tx) => {
-      // 1. Fetch current invoice details
-      const invoice = await tx.invoice.findUnique({
-        where: { id: validatedData.invoiceId },
-        select: { grandTotal: true, amountPaid: true },
-      });
+    const payment = await prisma.$transaction(
+      async (tx) => {
+        // 1. Fetch current invoice details
+        const invoice = await tx.invoice.findUnique({
+          where: { id: validatedData.invoiceId },
+          select: { grandTotal: true, amountPaid: true },
+        });
 
-      if (!invoice) {
-        throw new Error('Invoice not found.');
-      }
+        if (!invoice) {
+          throw new Error('Invoice not found.');
+        }
 
-      // 2. Create Payment
-      const p = await tx.payment.create({
-        data: {
-          invoiceId: validatedData.invoiceId,
-          amount: validatedData.amount,
-          paymentDate: validatedData.paymentDate,
-          paymentMethod: validatedData.paymentMethod,
-          status: PaymentStatus.PAID,
-          notes: validatedData.notes,
-        },
-      });
+        // 2. Create Payment
+        const p = await tx.payment.create({
+          data: {
+            invoiceId: validatedData.invoiceId,
+            amount: validatedData.amount,
+            paymentDate: validatedData.paymentDate,
+            paymentMethod: validatedData.paymentMethod,
+            status: PaymentStatus.PAID,
+            notes: validatedData.notes,
+          },
+        });
 
-      // 3. Update Invoice payment amounts
-      const newAmountPaid = Number(invoice.amountPaid) + validatedData.amount;
-      const total = Number(invoice.grandTotal);
-      
-      let newStatus: InvoiceStatus = InvoiceStatus.PARTIALLY_PAID;
-      if (newAmountPaid >= total) {
-        newStatus = InvoiceStatus.PAID;
-      }
+        // 3. Update Invoice payment amounts
+        const newAmountPaid = Number(invoice.amountPaid) + validatedData.amount;
+        const total = Number(invoice.grandTotal);
+        
+        let newStatus: InvoiceStatus = InvoiceStatus.PARTIALLY_PAID;
+        if (newAmountPaid >= total) {
+          newStatus = InvoiceStatus.PAID;
+        }
 
-      await tx.invoice.update({
-        where: { id: validatedData.invoiceId },
-        data: {
-          amountPaid: newAmountPaid,
-          status: newStatus,
-        },
-      });
+        await tx.invoice.update({
+          where: { id: validatedData.invoiceId },
+          data: {
+            amountPaid: newAmountPaid,
+            status: newStatus,
+          },
+        });
 
-      return p;
-    });
+        return p;
+      },
+      { timeout: 15000 }
+    );
 
-    revalidatePath('/erp/invoices');
-    revalidatePath(`/erp/invoices/${validatedData.invoiceId}`);
-    revalidatePath('/erp'); // dashboard revalidate
+    try {
+      revalidatePath('/erp/invoices');
+      revalidatePath(`/erp/invoices/${validatedData.invoiceId}`);
+      revalidatePath('/erp');
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: payment };
   } catch (error: any) {
     console.error('Error recording payment:', error);
@@ -269,9 +302,14 @@ export async function updateInvoiceStatus(id: string, status: InvoiceStatus) {
     const invoice = await prisma.invoice.update({
       where: { id },
       data: { status },
+      include: { customer: true, items: true, payments: true },
     });
-    revalidatePath('/erp/invoices');
-    revalidatePath(`/erp/invoices/${id}`);
+    try {
+      revalidatePath('/erp/invoices');
+      revalidatePath(`/erp/invoices/${id}`);
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true, data: invoice };
   } catch (error: any) {
     console.error('Error updating status:', error);
@@ -284,7 +322,11 @@ export async function deleteInvoice(id: string) {
     await prisma.invoice.delete({
       where: { id },
     });
-    revalidatePath('/erp/invoices');
+    try {
+      revalidatePath('/erp/invoices');
+    } catch (e) {
+      console.warn('revalidatePath error ignored:', e);
+    }
     return { success: true };
   } catch (error: any) {
     console.error('Error deleting invoice:', error);

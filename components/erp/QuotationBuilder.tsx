@@ -8,7 +8,7 @@ import {
   Printer, ArrowUp, ArrowDown, Send, Globe, DollarSign, Calendar,
   Minus
 } from 'lucide-react';
-import { createQuotation, updateQuotation } from '@/app/actions/quotes';
+import { createQuotation, updateQuotation, deleteQuotation } from '@/app/actions/quotes';
 import BaseTemplate, { DocumentData, DocumentItemData } from '../document/BaseTemplate';
 import CustomerModal from './CustomerModal';
 
@@ -346,6 +346,23 @@ export default function QuotationBuilder({
     }
   };
 
+  // Delete Quotation Action
+  const handleDeleteQuote = async () => {
+    if (!quoteToEdit?.id) return;
+    if (!confirm(`Are you sure you want to delete quotation ${quoteToEdit.quoteNumber || ''}?`)) return;
+    setLoading(true);
+    const res = await deleteQuotation(quoteToEdit.id);
+    setLoading(false);
+    if (res.success) {
+      onClose();
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    } else {
+      setError(res.error || 'Failed to delete quotation.');
+    }
+  };
+
   // Save Quotation Action
   const handleSave = async (targetStatus?: string) => {
     setLoading(true);
@@ -468,6 +485,18 @@ export default function QuotationBuilder({
 
         {/* Action Controls */}
         <div className="flex items-center gap-3">
+          {quoteToEdit?.id && (
+            <button
+              type="button"
+              onClick={handleDeleteQuote}
+              disabled={loading}
+              className="px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>Delete</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handlePrint}
@@ -481,17 +510,17 @@ export default function QuotationBuilder({
             type="button"
             onClick={() => handleSave()}
             disabled={loading}
-            className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+            className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4 text-slate-600" />
-            <span>Save</span>
+            <span>{loading ? 'Saving...' : 'Save Draft'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleSave('APPROVED')}
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{loading ? 'Saving...' : 'Save & Approve'}</span>

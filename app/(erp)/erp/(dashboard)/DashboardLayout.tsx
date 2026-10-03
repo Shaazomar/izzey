@@ -93,7 +93,7 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
 
       {/* Sidebar for Desktop */}
       <aside 
-        className={`hidden lg:flex flex-col bg-[#2E4036] text-[#F2F0E9] h-screen fixed top-0 left-0 bottom-0 justify-between transition-all duration-300 ease-in-out z-40 ${
+        className={`hidden lg:flex flex-col bg-[#2E4036] text-[#F2F0E9] h-screen fixed top-0 left-0 bottom-0 justify-between transition-all duration-300 ease-in-out z-40 overflow-hidden ${
           isCollapsed ? 'w-[80px] py-6 px-3' : 'w-64 p-5'
         }`}
       >
@@ -297,7 +297,7 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
       {/* Mobile Drawer Overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden bg-slate-900/60 backdrop-blur-sm">
-          <aside className="w-64 bg-[#2E4036] text-[#F2F0E9] p-6 flex flex-col justify-between h-full shadow-2xl relative animate-slide-right">
+          <aside className="w-64 bg-[#2E4036] text-[#F2F0E9] p-6 flex flex-col justify-between h-full shadow-2xl relative animate-slide-right overflow-hidden">
             <button
               onClick={() => setMobileOpen(false)}
               className="absolute top-4 right-4 p-2 rounded-xl hover:bg-white/10 text-slate-300 cursor-pointer"
@@ -305,7 +305,7 @@ export default function DashboardLayout({ children, initialMode }: DashboardLayo
               <X className="w-5 h-5" />
             </button>
 
-            <div className="space-y-6 mt-4 flex-1 overflow-y-auto">
+            <div className="space-y-6 mt-4 flex-1 overflow-y-auto no-scrollbar">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-[#CC5833] flex items-center justify-center text-white font-black text-sm">
                   IZ

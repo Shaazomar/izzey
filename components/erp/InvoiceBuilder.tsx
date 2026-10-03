@@ -7,7 +7,7 @@ import {
   FileCheck, ArrowRight, UserPlus, Save, Printer, ArrowUp, ArrowDown,
   Minus
 } from 'lucide-react';
-import { createInvoice, updateInvoice } from '@/app/actions/invoices';
+import { createInvoice, updateInvoice, deleteInvoice } from '@/app/actions/invoices';
 import BaseTemplate, { DocumentData } from '../document/BaseTemplate';
 import CustomerModal from './CustomerModal';
 
@@ -327,6 +327,23 @@ export default function InvoiceBuilder({
     }
   };
 
+  // Delete Invoice Action
+  const handleDeleteInvoice = async () => {
+    if (!invoiceToEdit?.id) return;
+    if (!confirm(`Are you sure you want to delete invoice ${invoiceToEdit.invoiceNumber || ''}?`)) return;
+    setLoading(true);
+    const res = await deleteInvoice(invoiceToEdit.id);
+    setLoading(false);
+    if (res.success) {
+      onClose();
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    } else {
+      setError(res.error || 'Failed to delete invoice.');
+    }
+  };
+
   const handleSave = async (targetStatus?: string) => {
     setLoading(true);
     setError('');
@@ -443,6 +460,18 @@ export default function InvoiceBuilder({
         </div>
 
         <div className="flex items-center gap-3">
+          {invoiceToEdit?.id && (
+            <button
+              type="button"
+              onClick={handleDeleteInvoice}
+              disabled={loading}
+              className="px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>Delete</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handlePrint}
@@ -456,17 +485,17 @@ export default function InvoiceBuilder({
             type="button"
             onClick={() => handleSave()}
             disabled={loading}
-            className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+            className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4 text-slate-600" />
-            <span>Save</span>
+            <span>{loading ? 'Saving...' : 'Save Draft'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleSave('PAID')}
             disabled={loading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md flex items-center gap-2"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{loading ? 'Saving...' : 'Save Official Invoice'}</span>

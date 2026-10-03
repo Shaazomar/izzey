@@ -157,11 +157,14 @@ export default function DocumentGenerator() {
   };
 
   const deleteHistoryRecord = async (documentId: string) => {
+    if (!confirm('Are you sure you want to delete this generated document record?')) return;
     try {
       const res = await fetch(`/api/documents/history?documentId=${documentId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         setHistory(prev => prev.filter(item => item.documentId !== documentId));
+      } else {
+        alert(data.error || 'Failed to delete document record.');
       }
     } catch (err) {
       console.error('Failed to delete history record:', err);
