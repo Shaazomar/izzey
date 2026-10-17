@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, Search, Filter, CreditCard, Banknote, Eye, 
@@ -12,15 +12,22 @@ import ActionMenu, { ActionMenuItem } from '@/components/erp/ActionMenu';
 import InvoiceBuilder from '@/components/erp/InvoiceBuilder';
 import RecordPaymentModal from '@/components/erp/RecordPaymentModal';
 import { formatDate, formatDateOrPeriod } from '@/lib/formatDate';
+import type { CompanyDetails } from '@/lib/invoice';
 
 interface InvoicesClientProps {
   initialInvoices: any[];
   customers: any[];
+  companyDefaults?: CompanyDetails;
 }
 
-export default function InvoicesClient({ initialInvoices, customers }: InvoicesClientProps) {
+export default function InvoicesClient({ initialInvoices, customers, companyDefaults }: InvoicesClientProps) {
   const router = useRouter();
   const [invoices, setInvoices] = useState(initialInvoices);
+
+  // Server data is the source of truth: whenever router.refresh() delivers a new list, adopt it.
+  useEffect(() => {
+    setInvoices(initialInvoices);
+  }, [initialInvoices]);
 
   // Filters & Search
   const [search, setSearch] = useState('');
@@ -41,12 +48,18 @@ export default function InvoicesClient({ initialInvoices, customers }: InvoicesC
     setTimeout(() => setToast(null), 4000);
   };
 
+  // The name printed on the invoice (saved billing details) wins over the customer record.
+  const billedName = (inv: any) => inv.billingDetails?.name || inv.customer?.name || '';
+  const billedCompany = (inv: any) => inv.billingDetails?.companyName ?? inv.customer?.companyName ?? '';
+
   // Filter logic
   const filteredInvoices = invoices.filter((inv) => {
+    const q = search.toLowerCase();
     const matchesSearch =
-      inv.invoiceNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      inv.customer?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      (inv.customer?.companyName && inv.customer.companyName.toLowerCase().includes(search.toLowerCase()));
+      inv.invoiceNumber?.toLowerCase().includes(q) ||
+      billedName(inv).toLowerCase().includes(q) ||
+      billedCompany(inv).toLowerCase().includes(q) ||
+      (inv.reference || '').toLowerCase().includes(q);
 
     const matchesStatus = statusFilter === 'ALL' || inv.status === statusFilter;
     const matchesCustomer = customerFilter === 'ALL' || inv.customerId === customerFilter;
@@ -58,7 +71,7 @@ export default function InvoicesClient({ initialInvoices, customers }: InvoicesC
     if (!confirm('Are you sure you want to delete this invoice?')) return;
     const res = await deleteInvoice(id);
     if (res.success) {
-      setInvoices(invoices.filter((inv) => inv.id !== id));
+      setInvoices((prev) => prev.filter((inv) => inv.id !== id));
       showToast('Invoice deleted successfully.', 'success');
       router.refresh();
     } else {
@@ -225,9 +238,9 @@ export default function InvoicesClient({ initialInvoices, customers }: InvoicesC
                     <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors group">
                       <td className="py-4 px-3 font-bold text-sm text-[#071938]">{inv.invoiceNumber}</td>
                       <td className="py-4 px-3">
-                        <div className="font-bold text-slate-900 font-body text-xs">{inv.customer?.name}</div>
-                        {inv.customer?.companyName && (
-                          <div className="text-[10px] text-slate-500">{inv.customer.companyName}</div>
+                        <div className="font-bold text-slate-900 font-body text-xs">{billedName(inv)}</div>
+                        {billedCompany(inv) && (
+                          <div className="text-[10px] text-slate-500">{billedCompany(inv)}</div>
                         )}
                       </td>
                       <td className="py-4 px-3">
@@ -300,12 +313,13 @@ export default function InvoicesClient({ initialInvoices, customers }: InvoicesC
         onClose={() => setBuilderOpen(false)}
         invoiceToEdit={editingInvoice}
         customers={customers}
+        companyDefaults={companyDefaults}
         onSuccess={(saved) => {
           if (editingInvoice) {
-            setInvoices(invoices.map((item) => (item.id === saved.id ? saved : item)));
+            setInvoices((prev) => prev.map((item) => (item.id === saved.id ? saved : item)));
             showToast(`Invoice ${saved.invoiceNumber} updated successfully!`, 'success');
           } else {
-            setInvoices([saved, ...invoices]);
+            setInvoices((prev) => [saved, ...prev.filter((item) => item.id !== saved.id)]);
             showToast(`Invoice ${saved.invoiceNumber} created successfully!`, 'success');
           }
           router.refresh();

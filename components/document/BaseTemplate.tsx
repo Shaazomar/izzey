@@ -21,6 +21,12 @@ export interface DocumentItemData {
 export interface DocumentData {
   type: 'quotation' | 'invoice';
   number: string;
+  reference?: string | null;
+  logoUrl?: string | null;
+  paymentTerms?: string | null;
+  paymentMethod?: string | null;
+  bankDetails?: string | null;
+  footerText?: string | null;
   dateType?: 'SINGLE_DATE' | 'CONTRACT_PERIOD';
   date: Date | string;
   toDate?: Date | string | null;
@@ -72,6 +78,8 @@ export default function BaseTemplate({ data }: BaseTemplateProps) {
         <Header
           type={data.type}
           number={data.number}
+          reference={data.reference}
+          logoUrl={data.logoUrl}
           dateType={data.dateType}
           date={data.date}
           toDate={data.toDate}
@@ -117,7 +125,14 @@ export default function BaseTemplate({ data }: BaseTemplateProps) {
 
       {/* Footer Pinned to Bottom */}
       <div className="pt-3">
-        <Footer type={data.type} language={language} />
+        <Footer
+          type={data.type}
+          language={language}
+          paymentTerms={data.paymentTerms}
+          paymentMethod={data.paymentMethod}
+          bankDetails={data.bankDetails}
+          footerText={data.footerText}
+        />
       </div>
       
     </div>

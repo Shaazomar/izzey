@@ -63,17 +63,57 @@ export const InvoiceItemSchema = z.object({
   vatPercent: z.number().nonnegative().default(19),
 });
 
+const optText = (max: number) => z.string().max(max).optional().nullable();
+
+export const InvoiceBillingSchema = z.object({
+  name: z.string().max(200).default(''),
+  companyName: z.string().max(200).default(''),
+  email: z.string().max(200).default(''),
+  phone: z.string().max(100).default(''),
+  address: z.string().max(500).default(''),
+  vatNumber: z.string().max(100).default(''),
+});
+
+export const InvoiceCompanySchema = z.object({
+  name: z.string().max(200).default(''),
+  address: z.string().max(500).default(''),
+  phone: z.string().max(100).default(''),
+  email: z.string().max(200).default(''),
+  website: z.string().max(200).default(''),
+  vatNumber: z.string().max(100).default(''),
+  logoUrl: z.string().max(500).default(''),
+});
+
+// Fields left out (undefined) are never written on update, so partial payloads cannot erase saved values.
 export const InvoiceSchema = z
   .object({
+    invoiceNumber: z
+      .string()
+      .trim()
+      .min(1, 'Invoice number is required.')
+      .max(50, 'Invoice number must be 50 characters or fewer.')
+      .optional(),
+    reference: optText(200),
     customerId: z.string().uuid(),
     quotationId: z.string().uuid().optional().nullable(),
     dateType: z.nativeEnum(DateType).default(DateType.SINGLE_DATE),
     issueDate: z.coerce.date().default(() => new Date()),
     toDate: z.coerce.date().optional().nullable(),
+    serviceDate: z.coerce.date().optional().nullable(),
     dueDate: z.coerce.date(),
     status: z.nativeEnum(InvoiceStatus).default(InvoiceStatus.DRAFT),
+    currency: z.string().trim().length(3, 'Currency must be a 3-letter code.').optional(),
+    language: z.enum(['de', 'en', 'both']).optional(),
+    paymentTerms: optText(2000),
+    paymentMethod: optText(200),
+    bankDetails: optText(2000),
+    footerText: optText(2000),
+    billingDetails: InvoiceBillingSchema.optional().nullable(),
+    companyDetails: InvoiceCompanySchema.optional().nullable(),
     items: z.array(InvoiceItemSchema).min(1, 'At least one item is required'),
     notes: z.string().optional().nullable(),
+    /** Optimistic-concurrency token: updatedAt of the version the user edited. */
+    expectedUpdatedAt: z.string().optional().nullable(),
   })
   .refine(
     (data) => data.dateType !== DateType.CONTRACT_PERIOD || data.toDate != null,
@@ -83,6 +123,7 @@ export const InvoiceSchema = z
     (data) => data.dateType !== DateType.CONTRACT_PERIOD || !data.toDate || data.toDate >= data.issueDate,
     { message: 'From Date cannot be later than To Date.', path: ['toDate'] }
   );
+
 
 export const PaymentSchema = z.object({
   invoiceId: z.string().uuid(),

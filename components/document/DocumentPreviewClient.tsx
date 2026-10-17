@@ -21,7 +21,9 @@ export default function DocumentPreviewClient({ data, backUrl, documentId }: Doc
   const docRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
   const [hasSavedEdits, setHasSavedEdits] = useState(false);
-  const storageKey = `doc-edits:${data.type}:${data.number}`;
+  // Keyed by a hash of the document content: once the invoice/quote is edited and saved, old manual
+  // text edits no longer apply, so they can never hide newly saved values.
+  const storageKey = `doc-edits:${data.type}:${data.number}:${hashString(JSON.stringify(data))}`;
 
   const getArea = () => docRef.current?.querySelector<HTMLElement>('#print-area') ?? null;
 
@@ -236,4 +238,10 @@ function EditableArea({
     area.spellcheck = editing;
   }, [editing, docRef]);
   return <>{children}</>;
+}
+
+function hashString(input: string): string {
+  let h = 5381;
+  for (let i = 0; i < input.length; i++) h = ((h << 5) + h + input.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
 }

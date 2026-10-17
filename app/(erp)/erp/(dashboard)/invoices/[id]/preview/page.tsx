@@ -3,7 +3,10 @@ import { notFound } from 'next/navigation';
 import { getInvoice } from '@/app/actions/invoices';
 import { getSettings } from '@/app/actions/settings';
 import DocumentPreviewClient from '@/components/document/DocumentPreviewClient';
-import { DocumentData } from '@/components/document/BaseTemplate';
+import { formValuesToDocumentData, invoiceToFormValues, resolveCompanyDefaults } from '@/lib/invoice';
+
+// Always render from the database: a saved edit must be visible on the very next load.
+export const dynamic = 'force-dynamic';
 
 interface InvoicePreviewPageProps {
   params: Promise<{ id: string }>;
@@ -21,63 +24,17 @@ export default async function InvoicePreviewPage({ params }: InvoicePreviewPageP
     notFound();
   }
 
-  const invoice = invoiceRes.data;
   const settings = settingsRes.success && settingsRes.data ? settingsRes.data : null;
 
-  const company = {
-    name: settings?.companyName || 'Izzey Clean & Move',
-    address: 'Alt-Moabit 58\n10555 Berlin, Germany',
-    phone: '+49 176 2170 9991',
-    email: 'info@izzey.de',
-    website: 'www.izzey.de',
-    vatNumber: settings?.vatNumber || '1130/360/50274',
-  };
-
-  const customer = {
-    name: invoice.customer.name,
-    companyName: invoice.customer.companyName,
-    propertyAddress: `${invoice.customer.address}\n${invoice.customer.city}, ${invoice.customer.country}`,
-    email: invoice.customer.email,
-    phone: invoice.customer.phone,
-    service: invoice.items?.[0]?.serviceName || 'Cleaning & Move services',
-  };
-
-  const items = (invoice.items || []).map((item: any, idx: number) => ({
-    position: idx + 1,
-    serviceName: item.serviceName,
-    description: item.description,
-    quantity: Number(item.quantity),
-    unit: item.unit || 'Std.',
-    unitPrice: Number(item.unitPrice),
-    discount: Number(item.discount || 0),
-    vatPercent: Number(item.vatPercent),
-    total: Number(item.total),
-  }));
-
-  const documentData: DocumentData = {
-    type: 'invoice',
-    number: invoice.invoiceNumber,
-    dateType: invoice.dateType,
-    date: new Date(invoice.issueDate),
-    toDate: invoice.toDate ? new Date(invoice.toDate) : undefined,
-    serviceDate: new Date(invoice.issueDate),
-    dueDate: new Date(invoice.dueDate),
-    company,
-    customer,
-    items,
-    notes: invoice.notes || 'Zahlbar innerhalb von 14 Tagen ohne Abzug. Bitte geben Sie bei der Überweisung die Rechnungsnummer an.',
-    subtotal: Number(invoice.subtotal),
-    vat: Number(invoice.vatAmount),
-    total: Number(invoice.grandTotal),
-  };
-
-  const serializedData = JSON.parse(JSON.stringify(documentData));
+  // Same mapping the editor's live preview uses, so preview, print and PDF match what was edited.
+  const values = invoiceToFormValues(invoiceRes.data, resolveCompanyDefaults(settings));
+  const documentData = formValuesToDocumentData(values);
 
   return (
-    <DocumentPreviewClient 
-      data={serializedData} 
-      backUrl="/erp/invoices" 
-      documentId={invoice.id}
+    <DocumentPreviewClient
+      data={JSON.parse(JSON.stringify(documentData))}
+      backUrl="/erp/invoices"
+      documentId={invoiceRes.data.id}
     />
   );
 }

@@ -3,9 +3,13 @@ import React from 'react';
 interface FooterProps {
   type: 'quotation' | 'invoice';
   language?: 'de' | 'en' | 'both';
+  paymentTerms?: string | null;
+  paymentMethod?: string | null;
+  bankDetails?: string | null;
+  footerText?: string | null;
 }
 
-export default function Footer({ type, language = 'both' }: FooterProps) {
+export default function Footer({ type, language = 'both', paymentTerms, paymentMethod, bankDetails, footerText }: FooterProps) {
   const isQuote = type === 'quotation';
 
   const getCol1Heading = () => {
@@ -46,8 +50,9 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
               Um dieses Angebot anzunehmen, antworten Sie bitte per E-Mail oder rufen Sie uns an. Nach Bestätigung stimmen wir den genauen Termin mit Ihnen ab.
             </p>
           ) : (
-            <p>
-              Bitte überweisen Sie den ausstehenden Betrag innerhalb von 14 Tagen auf das angegebene Bankkonto unter Angabe der Rechnungsnummer.
+            <p className="whitespace-pre-wrap">
+              {paymentTerms || 'Bitte überweisen Sie den ausstehenden Betrag innerhalb von 14 Tagen auf das angegebene Bankkonto unter Angabe der Rechnungsnummer.'}
+              {paymentMethod ? <><br /><strong>{language === 'en' ? 'Payment method' : 'Zahlungsart'}:</strong> {paymentMethod}</> : null}
             </p>
           )}
         </div>
@@ -57,8 +62,8 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
           <h5 className="font-heading font-black text-[#2E4036] tracking-wider uppercase text-[10px] mb-1">
             {getCol2Heading()}
           </h5>
-          <p>
-            Vielen Dank für Ihren geschätzten Auftrag und das Vertrauen in unsere Dienstleistungen. Wir freuen uns darauf, Sie zu begleiten!
+          <p className="whitespace-pre-wrap">
+            {footerText || 'Vielen Dank für Ihren geschätzten Auftrag und das Vertrauen in unsere Dienstleistungen. Wir freuen uns darauf, Sie zu begleiten!'}
           </p>
         </div>
 
@@ -67,13 +72,17 @@ export default function Footer({ type, language = 'both' }: FooterProps) {
           <h5 className="font-heading font-black text-[#2E4036] tracking-wider uppercase text-[10px] mb-1">
             {getCol3Heading()}
           </h5>
-          <p className="space-y-0.5">
+          <p className="space-y-0.5 whitespace-pre-wrap">
             <strong>Izz & Hameed Dienstleistung, (haftungsbeschränkt)</strong><br />
             Geschäftsführer: Nehal Hameed, Izuddin Arfaz<br />
             Alt-Moabit 58, 10555 Berlin<br />
-            IBAN: DE08 1005 0000 0191 3380 36<br />
-            BIC: BELADEBEXXX<br />
-            Steuernummer: 1130/360/50274
+            {bankDetails ? bankDetails : (
+              <>
+                IBAN: DE08 1005 0000 0191 3380 36<br />
+                BIC: BELADEBEXXX<br />
+                Steuernummer: 1130/360/50274
+              </>
+            )}
           </p>
         </div>
       </div>
