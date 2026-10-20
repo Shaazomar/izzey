@@ -5,6 +5,8 @@ import { formatDate } from '@/lib/formatDate';
 interface HeaderProps {
   type: 'quotation' | 'invoice';
   number: string;
+  reference?: string | null;
+  logoUrl?: string | null;
   dateType?: 'SINGLE_DATE' | 'CONTRACT_PERIOD';
   date: Date | string | number;
   toDate?: Date | string | number | null;
@@ -17,6 +19,8 @@ interface HeaderProps {
 export default function Header({
   type,
   number,
+  reference,
+  logoUrl,
   dateType = 'SINGLE_DATE',
   date,
   toDate,
@@ -74,14 +78,19 @@ export default function Header({
     <div className="flex justify-between items-start border-b-2 border-[#2E4036]/20 pb-2">
       {/* Top Left: Logo */}
       <div className="relative w-[170px] h-[50px]">
-        <Image
-          src="/logo.png"
-          alt="Izzey Clean & Move"
-          fill
-          priority
-          sizes="170px"
-          className="object-contain object-left"
-        />
+        {logoUrl && logoUrl !== '/logo.png' ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="Logo" className="absolute inset-0 w-full h-full object-contain object-left" />
+        ) : (
+          <Image
+            src="/logo.png"
+            alt="Izzey Clean & Move"
+            fill
+            priority
+            sizes="170px"
+            className="object-contain object-left"
+          />
+        )}
       </div>
 
       {/* Top Right: Heading & Quotation Info Box */}
@@ -97,6 +106,12 @@ export default function Header({
               <span className="text-slate-500 uppercase text-[8.5px] font-bold tracking-wider whitespace-nowrap">{getNumberLabel()}</span>
               <span className="font-bold text-[#2E4036] text-[11.5px] whitespace-nowrap">{number}</span>
             </div>
+            {reference && (
+              <div className="flex justify-between items-center border-t border-slate-200 pt-1.5 gap-4">
+                <span className="text-slate-500 uppercase text-[8.5px] font-bold tracking-wider whitespace-nowrap">{language === 'de' ? 'REFERENZ' : language === 'en' ? 'REFERENCE' : 'REFERENZ / REFERENCE'}</span>
+                <span className="font-bold text-slate-800 text-right">{reference}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center border-t border-slate-200 pt-1.5 gap-4">
               <span className="text-slate-500 uppercase text-[8.5px] font-bold tracking-wider whitespace-nowrap">{getDateLabel()}</span>
               <span className="font-bold text-slate-800 whitespace-nowrap">

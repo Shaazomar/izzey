@@ -421,7 +421,8 @@ export async function convertQuoteToInvoice(
             grandTotal: quote.grandTotal,
             notes: quote.notes,
             items: {
-              create: quote.items.map((item) => ({
+              create: quote.items.map((item, idx) => ({
+                position: idx,
                 serviceName: item.serviceName,
                 description: item.description,
                 quantity: item.quantity,

@@ -1,13 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, Plus, Trash2, Copy, Sparkles, CheckCircle2, 
   FileCheck, ArrowRight, UserPlus, Save, Printer, ArrowUp, ArrowDown,
   Minus
 } from 'lucide-react';
-import { createInvoice, updateInvoice, deleteInvoice } from '@/app/actions/invoices';
+import { createInvoice, updateInvoice, deleteInvoice, getInvoiceForEdit, generateInvoiceNumber } from '@/app/actions/invoices';
+import {
+  CompanyDetails,
+  DEFAULT_COMPANY,
+  InvoiceFormValues,
+  InvoiceLanguage,
+  calcInvoiceTotals,
+  formValuesToDocumentData,
+  formValuesToPayload,
+  invoiceToFormValues,
+} from '@/lib/invoice';
 import BaseTemplate, { DocumentData } from '../document/BaseTemplate';
 import CustomerModal from './CustomerModal';
 
@@ -127,6 +137,7 @@ interface InvoiceBuilderProps {
   onClose: () => void;
   invoiceToEdit?: any | null;
   customers: any[];
+  companyDefaults?: CompanyDetails;
   onSuccess: (savedInvoice: any) => void;
 }
 
@@ -135,6 +146,7 @@ export default function InvoiceBuilder({
   onClose,
   invoiceToEdit,
   customers: initialCustomers,
+  companyDefaults = DEFAULT_COMPANY,
   onSuccess,
 }: InvoiceBuilderProps) {
   const [customers, setCustomers] = useState(initialCustomers);
@@ -145,10 +157,10 @@ export default function InvoiceBuilder({
     setMounted(true);
   }, []);
 
-  // Form State
+  // Form State (single editable copy; hydrated from the canonical DB record on open)
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  
-  // Customer Override Fields
+
+  // Billing (customer) details printed on this invoice
   const [custName, setCustName] = useState('');
   const [custCompany, setCustCompany] = useState('');
   const [custPhone, setCustPhone] = useState('');
@@ -156,101 +168,178 @@ export default function InvoiceBuilder({
   const [custAddress, setCustAddress] = useState('');
   const [custVatNumber, setCustVatNumber] = useState('');
 
+  // Company (provider) details printed on this invoice
+  const [company, setCompany] = useState<CompanyDetails>(companyDefaults);
+
   // Invoice Config
-  const [invoiceNumber, setInvoiceNumber] = useState(() => `INV-${new Date().getFullYear()}-0001`);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [reference, setReference] = useState('');
   const [dateType, setDateType] = useState<'SINGLE_DATE' | 'CONTRACT_PERIOD'>('SINGLE_DATE');
-  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [dueDate, setDueDate] = useState(() => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  const [issueDate, setIssueDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [serviceDate, setServiceDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [currency, setCurrency] = useState('EUR');
-  const [language, setLanguage] = useState<'de' | 'en' | 'both'>('both');
+  const [language, setLanguage] = useState<InvoiceLanguage>('both');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<string>('DRAFT');
+  const [paymentTerms, setPaymentTerms] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [bankDetails, setBankDetails] = useState('');
+  const [footerText, setFooterText] = useState('');
 
-  const [items, setItems] = useState<InvoiceItemInput[]>([
-    {
-      serviceName: 'Wohnungs-Tiefenreinigung / Deep Cleaning Apartment',
-      description: 'Intensivreinigung aller Oberflächen, Sanitärräume und Fensterbänke.',
-      quantity: 1,
-      unit: 'Std.',
-      unitPrice: 280,
-      discount: 0,
-      vatPercent: 19,
-    },
-  ]);
+  const [items, setItems] = useState<InvoiceItemInput[]>([]);
 
   const [loading, setLoading] = useState(false);
+  const [loadingRecord, setLoadingRecord] = useState(false);
   const [error, setError] = useState('');
   const [zoom, setZoom] = useState(0.85);
 
-  // Hydrate Form
+  // Version of the record the form was loaded from (stale-write protection) and re-entrancy guards.
+  const [loadedUpdatedAt, setLoadedUpdatedAt] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const dueDateTouchedRef = useRef(false);
+  const customersRef = useRef(initialCustomers);
+  customersRef.current = customers;
+
+  const applyValues = (v: InvoiceFormValues) => {
+    setSelectedCustomerId(v.customerId);
+    setCustName(v.billing.name);
+    setCustCompany(v.billing.companyName);
+    setCustPhone(v.billing.phone);
+    setCustEmail(v.billing.email);
+    setCustAddress(v.billing.address);
+    setCustVatNumber(v.billing.vatNumber);
+    setCompany(v.company);
+    setInvoiceNumber(v.invoiceNumber);
+    setReference(v.reference);
+    setDateType(v.dateType);
+    setIssueDate(v.issueDate);
+    setToDate(v.toDate);
+    setServiceDate(v.serviceDate);
+    setDueDate(v.dueDate);
+    setCurrency(v.currency);
+    setLanguage(v.language);
+    setStatus(v.status);
+    setNotes(v.notes);
+    setPaymentTerms(v.paymentTerms);
+    setPaymentMethod(v.paymentMethod);
+    setBankDetails(v.bankDetails);
+    setFooterText(v.footerText);
+    setItems(v.items);
+  };
+
+  const currentValues = (): InvoiceFormValues => ({
+    invoiceNumber,
+    reference,
+    customerId: selectedCustomerId,
+    billing: {
+      name: custName,
+      companyName: custCompany,
+      email: custEmail,
+      phone: custPhone,
+      address: custAddress,
+      vatNumber: custVatNumber,
+    },
+    company,
+    dateType,
+    issueDate,
+    toDate,
+    serviceDate,
+    dueDate,
+    currency,
+    language,
+    status,
+    paymentTerms,
+    paymentMethod,
+    bankDetails,
+    footerText,
+    notes,
+    items,
+  });
+
+  const billingFromCustomer = (c: any) => invoiceToFormValues({ customer: c, customerId: c.id }, companyDefaults).billing;
+
+  const applyBilling = (b: ReturnType<typeof billingFromCustomer>) => {
+    setCustName(b.name);
+    setCustCompany(b.companyName);
+    setCustPhone(b.phone);
+    setCustEmail(b.email);
+    setCustAddress(b.address);
+    setCustVatNumber(b.vatNumber);
+  };
+
   useEffect(() => {
     setCustomers(initialCustomers);
-    if (invoiceToEdit) {
-      setSelectedCustomerId(invoiceToEdit.customerId);
-      setInvoiceNumber(invoiceToEdit.invoiceNumber || 'INV-2026-0001');
-      setDateType(invoiceToEdit.dateType || 'SINGLE_DATE');
-      setIssueDate(new Date(invoiceToEdit.issueDate).toISOString().split('T')[0]);
-      setToDate(invoiceToEdit.toDate ? new Date(invoiceToEdit.toDate).toISOString().split('T')[0] : new Date(invoiceToEdit.issueDate).toISOString().split('T')[0]);
-      setDueDate(new Date(invoiceToEdit.dueDate).toISOString().split('T')[0]);
-      setNotes(invoiceToEdit.notes || '');
-      setStatus(invoiceToEdit.status || 'DRAFT');
+  }, [initialCustomers]);
 
-      const cust = initialCustomers.find((c) => c.id === invoiceToEdit.customerId);
-      if (cust) {
-        setCustName(cust.name || '');
-        setCustCompany(cust.companyName || '');
-        setCustPhone(cust.phone || '');
-        setCustEmail(cust.email || '');
-        setCustAddress(cust.address || '');
-        setCustVatNumber(cust.vatNumber || '');
-      }
+  // Hydrate ONLY when the editor opens (or switches invoice). Re-running on prop identity changes
+  // (e.g. after router.refresh) would wipe what the user is typing.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setError('');
+    setLoadedUpdatedAt(null);
 
-      if (invoiceToEdit.items && invoiceToEdit.items.length > 0) {
-        setItems(
-          invoiceToEdit.items.map((it: any) => ({
-            serviceName: it.serviceName,
-            description: it.description || '',
-            quantity: Number(it.quantity) || 1,
-            unit: it.unit || 'Std.',
-            unitPrice: Number(it.unitPrice) || 0,
-            discount: Number(it.discount) || 0,
-            vatPercent: Number(it.vatPercent) || 19,
-          }))
-        );
-      }
+    if (invoiceToEdit?.id) {
+      dueDateTouchedRef.current = true;
+      // Show the row we already have instantly, then replace it with the canonical DB record.
+      applyValues(invoiceToFormValues(invoiceToEdit, companyDefaults));
+      setLoadingRecord(true);
+      getInvoiceForEdit(invoiceToEdit.id)
+        .then((res: any) => {
+          if (cancelled) return;
+          if (res.success && res.data) {
+            applyValues(invoiceToFormValues(res.data, companyDefaults));
+            setLoadedUpdatedAt(res.data.updatedAt);
+          } else {
+            setError(res.error || 'Could not load the latest version of this invoice.');
+          }
+        })
+        .catch(() => !cancelled && setError('Could not load the latest version of this invoice.'))
+        .finally(() => !cancelled && setLoadingRecord(false));
     } else {
-      const defaultCust = initialCustomers[0];
-      if (defaultCust) {
-        setSelectedCustomerId(defaultCust.id);
-        setCustName(defaultCust.name || '');
-        setCustCompany(defaultCust.companyName || '');
-        setCustPhone(defaultCust.phone || '');
-        setCustEmail(defaultCust.email || '');
-        setCustAddress(defaultCust.address || '');
-        setCustVatNumber(defaultCust.vatNumber || '');
-      }
-      setInvoiceNumber(`INV-${new Date().getFullYear()}-0001`);
-      setDateType('SINGLE_DATE');
-      setIssueDate(new Date().toISOString().split('T')[0]);
-      setToDate(new Date().toISOString().split('T')[0]);
-      setDueDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-      setNotes('Zahlbar innerhalb von 14 Tagen ohne Abzug. Vielen Dank für Ihren Auftrag!');
-      setStatus('DRAFT');
+      dueDateTouchedRef.current = false;
+      const today = new Date().toISOString().split('T')[0];
+      const defaultCust = customersRef.current[0];
+      const base = invoiceToFormValues(
+        { customer: defaultCust, customerId: defaultCust?.id, issueDate: today, dueDate: new Date(Date.now() + 14 * 86400000), items: [] },
+        companyDefaults
+      );
+      applyValues({
+        ...base,
+        invoiceNumber: '',
+        currency: 'EUR',
+        language: 'both',
+        status: 'DRAFT',
+        notes: 'Zahlbar innerhalb von 14 Tagen ohne Abzug. Vielen Dank für Ihren Auftrag!',
+        items: [
+          {
+            serviceName: 'Wohnungs-Tiefenreinigung / Deep Cleaning Apartment',
+            description: 'Intensivreinigung aller Oberflächen, Sanitärräume und Fensterbänke.',
+            quantity: 1,
+            unit: 'Std.',
+            unitPrice: 280,
+            discount: 0,
+            vatPercent: 19,
+          },
+        ],
+      });
+      generateInvoiceNumber()
+        .then((n) => !cancelled && setInvoiceNumber((cur) => cur || n))
+        .catch(() => {});
     }
-  }, [invoiceToEdit, isOpen, initialCustomers]);
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, invoiceToEdit?.id]);
 
   const handleCustomerSelect = (id: string) => {
     setSelectedCustomerId(id);
     const cust = customers.find((c) => c.id === id);
-    if (cust) {
-      setCustName(cust.name || '');
-      setCustCompany(cust.companyName || '');
-      setCustPhone(cust.phone || '');
-      setCustEmail(cust.email || '');
-      setCustAddress(cust.address || '');
-      setCustVatNumber(cust.vatNumber || '');
-    }
+    if (cust) applyBilling(billingFromCustomer(cust));
   };
 
   const handleAddItemRow = () => {
@@ -292,34 +381,10 @@ export default function InvoiceBuilder({
     setItems([...items, ...preset.items]);
   };
 
-  // Live Totals Calculation
-  const calculateTotals = () => {
-    let subtotal = 0;
-    let totalDiscount = 0;
-    let totalVat = 0;
+  // Live totals use the exact same function the server uses to compute the saved totals.
+  const calc = calcInvoiceTotals(items);
+  const totals = { subtotal: calc.subtotal, discount: calc.discount, vat: calc.vat, grandTotal: calc.grandTotal };
 
-    items.forEach((item) => {
-      const itemSub = item.quantity * item.unitPrice;
-      const disc = itemSub * (item.discount / 100);
-      const net = itemSub - disc;
-      const vat = net * (item.vatPercent / 100);
-
-      subtotal += itemSub;
-      totalDiscount += disc;
-      totalVat += vat;
-    });
-
-    const grandTotal = subtotal - totalDiscount + totalVat;
-
-    return {
-      subtotal,
-      discount: totalDiscount,
-      vat: totalVat,
-      grandTotal,
-    };
-  };
-
-  const totals = calculateTotals();
 
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
@@ -344,101 +409,68 @@ export default function InvoiceBuilder({
     }
   };
 
+  const validateForm = (v: InvoiceFormValues): string => {
+    if (!v.customerId) return 'Please select a customer.';
+    if (!v.invoiceNumber.trim()) return 'Invoice number is required.';
+    if (!v.issueDate) return 'Invoice date is required.';
+    if (!v.dueDate) return 'Due date is required.';
+    if (v.dateType === 'CONTRACT_PERIOD') {
+      if (!v.toDate) return 'To Date is required for a contract period.';
+      if (new Date(v.toDate) < new Date(v.issueDate)) return 'From Date cannot be later than To Date.';
+    }
+    if (v.items.length === 0) return 'At least one item is required.';
+    for (let i = 0; i < v.items.length; i++) {
+      const it = v.items[i];
+      if (!it.serviceName.trim()) return `Line ${i + 1}: service name is required.`;
+      if (!(Number(it.quantity) > 0)) return `Line ${i + 1}: quantity must be greater than 0.`;
+      if (!(Number(it.unitPrice) >= 0)) return `Line ${i + 1}: price cannot be negative.`;
+      if (Number(it.discount) < 0 || Number(it.discount) > 100) return `Line ${i + 1}: discount must be between 0 and 100.`;
+    }
+    return '';
+  };
+
   const handleSave = async (targetStatus?: string) => {
+    // Ignore duplicate clicks while a save is in flight.
+    if (savingRef.current || loadingRecord) return;
+
+    const values = { ...currentValues(), status: targetStatus || status };
+    const validationError = validateForm(values);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    savingRef.current = true;
     setLoading(true);
     setError('');
 
-    if (!selectedCustomerId) {
-      setError('Please select a customer.');
+    try {
+      const payload = formValuesToPayload(values);
+      const res = invoiceToEdit?.id
+        ? await updateInvoice(invoiceToEdit.id, { ...payload, expectedUpdatedAt: loadedUpdatedAt })
+        : await createInvoice(payload);
+
+      if (res.success && res.data) {
+        // Replace the form with the canonical saved record, then let the parent update its list.
+        applyValues(invoiceToFormValues(res.data, companyDefaults));
+        setLoadedUpdatedAt((res.data as any).updatedAt ?? null);
+        onSuccess(res.data);
+        onClose();
+      } else {
+        setError(res.error || 'Failed to save invoice.');
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Failed to save invoice.');
+    } finally {
+      savingRef.current = false;
       setLoading(false);
-      return;
-    }
-
-    if (dateType === 'CONTRACT_PERIOD' && new Date(toDate) < new Date(issueDate)) {
-      setError('From Date cannot be later than To Date.');
-      setLoading(false);
-      return;
-    }
-
-    const payload = {
-      customerId: selectedCustomerId,
-      dateType,
-      issueDate: new Date(issueDate),
-      toDate: dateType === 'CONTRACT_PERIOD' ? new Date(toDate) : null,
-      dueDate: new Date(dueDate),
-      status: targetStatus || status,
-      items: items.map((it) => ({
-        serviceName: it.serviceName,
-        description: it.description,
-        quantity: Number(it.quantity) || 1,
-        unit: it.unit || 'Std.',
-        unitPrice: Number(it.unitPrice) || 0,
-        discount: Number(it.discount) || 0,
-        vatPercent: Number(it.vatPercent) || 19,
-      })),
-      notes,
-    };
-
-    let res;
-    if (invoiceToEdit?.id) {
-      res = await updateInvoice(invoiceToEdit.id, payload);
-    } else {
-      res = await createInvoice(payload);
-    }
-    setLoading(false);
-
-    if (res.success && res.data) {
-      onSuccess(res.data);
-      onClose();
-    } else {
-      setError(res.error || 'Failed to save invoice.');
     }
   };
 
   if (!isOpen || !mounted) return null;
 
-  const liveDocumentData: DocumentData = {
-    type: 'invoice',
-    number: invoiceNumber,
-    dateType,
-    date: issueDate ? new Date(issueDate) : new Date(),
-    toDate: dateType === 'CONTRACT_PERIOD' && toDate ? new Date(toDate) : undefined,
-    dueDate: dueDate ? new Date(dueDate) : undefined,
-    language,
-    currency,
-    company: {
-      name: 'Izz & Hameed Dienstleistung, (haftungsbeschränkt)',
-      address: 'Alt-Moabit 58\n10555 Berlin, Germany',
-      phone: '+49 (0) 30 1234 5678',
-      email: 'info@izzey.de',
-      website: 'www.izzey.de',
-      vatNumber: '1130/360/50274',
-    },
-    customer: {
-      name: custName || 'Client Name',
-      companyName: custCompany || undefined,
-      propertyAddress: custAddress || 'Berlin, Germany',
-      email: custEmail || 'client@example.com',
-      phone: custPhone || undefined,
-      vatNumber: custVatNumber || undefined,
-    },
-    items: items.map((it, idx) => ({
-      position: idx + 1,
-      serviceName: it.serviceName || 'Service Item',
-      description: it.description,
-      quantity: Number(it.quantity) || 1,
-      unit: it.unit || 'Std.',
-      unitPrice: Number(it.unitPrice) || 0,
-      discount: Number(it.discount) || 0,
-      vatPercent: Number(it.vatPercent) || 19,
-      total: (Number(it.quantity) || 1) * (Number(it.unitPrice) || 0) * (1 - (Number(it.discount) || 0) / 100),
-    })),
-    notes,
-    subtotal: totals.subtotal,
-    discount: totals.discount,
-    vat: totals.vat,
-    total: totals.grandTotal,
-  };
+  // Same mapper as the saved preview/PDF page: what you see here is what gets printed.
+  const liveDocumentData: DocumentData = formValuesToDocumentData(currentValues());
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] bg-[#F8FAFC] flex flex-col text-slate-900 overflow-hidden font-body animate-fade-in print:bg-white print:static print:h-auto print:overflow-visible">
@@ -484,17 +516,17 @@ export default function InvoiceBuilder({
           <button
             type="button"
             onClick={() => handleSave()}
-            disabled={loading}
+            disabled={loading || loadingRecord}
             className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4 text-slate-600" />
-            <span>{loading ? 'Saving...' : 'Save Draft'}</span>
+            <span>{loading ? 'Saving...' : loadingRecord ? 'Loading...' : 'Save Draft'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleSave('PAID')}
-            disabled={loading}
+            disabled={loading || loadingRecord}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CheckCircle2 className="w-4 h-4" />
@@ -516,6 +548,12 @@ export default function InvoiceBuilder({
         {/* LEFT PANEL */}
         <div className="no-print h-full overflow-y-auto p-6 space-y-6 bg-slate-50 border-r border-slate-200">
           
+          {loadingRecord && (
+            <div className="bg-slate-100 border border-slate-200 text-slate-600 px-4 py-2 rounded-2xl text-xs font-mono">
+              Loading the latest saved version…
+            </div>
+          )}
+
           {error && (
             <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-xs font-mono">
               {error}
@@ -610,8 +648,8 @@ export default function InvoiceBuilder({
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Address</label>
-                <input
-                  type="text"
+                <textarea
+                  rows={2}
                   value={custAddress}
                   onChange={(e) => setCustAddress(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
@@ -639,6 +677,27 @@ export default function InvoiceBuilder({
               </div>
 
               <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Reference</label>
+                <input
+                  type="text"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="PO / order / project ref."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Service Date</label>
+                <input
+                  type="date"
+                  value={serviceDate}
+                  onChange={(e) => setServiceDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
+                />
+              </div>
+
+              <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Date Type</label>
                 <select
                   value={dateType}
@@ -659,7 +718,8 @@ export default function InvoiceBuilder({
                     onChange={(e) => {
                       const newDate = e.target.value;
                       setIssueDate(newDate);
-                      if (newDate) {
+                      // Only suggest a due date until the user has chosen one themselves (never when editing a saved invoice).
+                      if (newDate && !dueDateTouchedRef.current) {
                         const d = new Date(newDate);
                         if (!isNaN(d.getTime())) {
                           const nextDue = new Date(d.getTime() + 14 * 24 * 60 * 60 * 1000);
@@ -706,7 +766,10 @@ export default function InvoiceBuilder({
                 <input
                   type="date"
                   value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  onChange={(e) => {
+                    dueDateTouchedRef.current = true;
+                    setDueDate(e.target.value);
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white"
                 />
               </div>
@@ -796,7 +859,10 @@ export default function InvoiceBuilder({
                     <th className="pb-2 px-1 text-center w-8">Sl</th>
                     <th className="pb-2 px-2 min-w-[200px]">Service Name</th>
                     <th className="pb-2 px-2 min-w-[200px]">Description</th>
-                    <th className="pb-2 px-2 text-right w-28">Price (€)</th>
+                    <th className="pb-2 px-1 text-center w-16">Qty</th>
+                    <th className="pb-2 px-1 text-center w-20">Unit</th>
+                    <th className="pb-2 px-2 text-right w-28">Price ({currency})</th>
+                    <th className="pb-2 px-1 text-center w-16">Disc%</th>
                     <th className="pb-2 px-1 text-center w-16">VAT%</th>
                     <th className="pb-2 px-1 text-center w-20">Actions</th>
                   </tr>
@@ -827,14 +893,48 @@ export default function InvoiceBuilder({
                           />
                         </td>
 
-                        {/* Price (maps to unitPrice, quantity is 1) */}
+                        <td className="py-2.5 px-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(idx, 'quantity', e.target.value === '' ? ('' as any) : Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:bg-white focus:border-emerald-500"
+                          />
+                        </td>
+
+                        <td className="py-2.5 px-1">
+                          <input
+                            type="text"
+                            value={item.unit}
+                            onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:bg-white focus:border-emerald-500"
+                          />
+                        </td>
+
+                        {/* Unit price */}
                         <td className="py-2.5 px-2">
                           <input
                             type="number"
-                            step="0.5"
+                            step="any"
+                            min="0"
                             value={item.unitPrice}
-                            onChange={(e) => handleItemChange(idx, 'unitPrice', Number(e.target.value))}
+                            onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value === '' ? ('' as any) : Number(e.target.value))}
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-right font-bold focus:outline-none focus:bg-white focus:border-emerald-500"
+                          />
+                        </td>
+
+                        {/* Discount % */}
+                        <td className="py-2.5 px-1">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="any"
+                            value={item.discount}
+                            onChange={(e) => handleItemChange(idx, 'discount', e.target.value === '' ? ('' as any) : Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:bg-white focus:border-emerald-500"
                           />
                         </td>
 
@@ -842,8 +942,10 @@ export default function InvoiceBuilder({
                         <td className="py-2.5 px-1">
                           <input
                             type="number"
+                            min="0"
+                            step="any"
                             value={item.vatPercent}
-                            onChange={(e) => handleItemChange(idx, 'vatPercent', Number(e.target.value))}
+                            onChange={(e) => handleItemChange(idx, 'vatPercent', e.target.value === '' ? ('' as any) : Number(e.target.value))}
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:bg-white focus:border-emerald-500"
                           />
                         </td>
@@ -914,6 +1016,51 @@ export default function InvoiceBuilder({
               onChange={(e) => setNotes(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:outline-none focus:bg-white"
             />
+          </div>
+
+          {/* Section 6: Payment & Footer */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-3 text-xs font-mono">
+            <h2 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">Payment &amp; Footer</h2>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Payment Terms (leave empty for the standard text)</label>
+              <textarea rows={2} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Payment Method</label>
+              <input type="text" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} placeholder="e.g. Bank transfer" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bank Details (leave empty for the standard IBAN/BIC)</label>
+              <textarea rows={3} value={bankDetails} onChange={(e) => setBankDetails(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Footer / Thank-you Text (leave empty for the standard text)</label>
+              <textarea rows={2} value={footerText} onChange={(e) => setFooterText(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white" />
+            </div>
+          </div>
+
+          {/* Section 7: Company details */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-3 text-xs font-mono">
+            <h2 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">Company Details (Provider)</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {([
+                ['name', 'Company Name'],
+                ['vatNumber', 'Tax / VAT Number'],
+                ['phone', 'Phone'],
+                ['email', 'Email'],
+                ['website', 'Website'],
+                ['logoUrl', 'Logo URL'],
+              ] as [keyof CompanyDetails, string][]).map(([key, label]) => (
+                <div key={key}>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{label}</label>
+                  <input type="text" value={company[key]} onChange={(e) => setCompany({ ...company, [key]: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white" />
+                </div>
+              ))}
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Address</label>
+                <textarea rows={2} value={company.address} onChange={(e) => setCompany({ ...company, address: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:bg-white" />
+              </div>
+            </div>
           </div>
 
         </div>
@@ -993,12 +1140,7 @@ export default function InvoiceBuilder({
         onSuccess={(newCust) => {
           setCustomers([newCust, ...customers]);
           setSelectedCustomerId(newCust.id);
-          setCustName(newCust.name || '');
-          setCustCompany(newCust.companyName || '');
-          setCustPhone(newCust.phone || '');
-          setCustEmail(newCust.email || '');
-          setCustAddress(newCust.address || '');
-          setCustVatNumber(newCust.vatNumber || '');
+          applyBilling(billingFromCustomer(newCust));
         }}
       />
 
