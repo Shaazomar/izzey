@@ -1,45 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { getStoredDocumentPath, getDocumentHistory } from '@/lib/documents/job-manager';
-import fs from 'fs';
+import { NextRequest } from 'next/server';
+import { readDocumentFile } from '@/lib/documents/document-service';
+import { errorResponse, pdfResponse, requireSession } from '@/lib/documents/route-helpers';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ documentId: string }> }
-) {
+export const runtime = 'nodejs';
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ documentId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized access' }, { status: 401 });
-    }
+    const { denied } = await requireSession();
+    if (denied) return denied;
 
     const { documentId } = await params;
-    const filePath = getStoredDocumentPath(documentId);
-
-    if (!filePath) {
-      return NextResponse.json({ success: false, error: 'Requested document file does not exist.' }, { status: 404 });
-    }
-
-    const history = getDocumentHistory();
-    const record = history.find(r => r.documentId === documentId);
-    const fileName = record?.fileName || `Document_${documentId}.pdf`;
-
-    const fileBuffer = fs.readFileSync(filePath);
-
-    return new NextResponse(fileBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${encodeURIComponent(fileName)}"`,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
-    });
-
-  } catch (err: any) {
-    console.error('Error serving document preview:', err);
-    return NextResponse.json({ success: false, error: 'Failed to preview document.' }, { status: 500 });
+    const { record, bytes } = await readDocumentFile(documentId);
+    return pdfResponse(bytes, record.fileName, 'inline');
+  } catch (err) {
+    return errorResponse(err, 'Failed to preview document.');
   }
 }
