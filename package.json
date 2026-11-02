@@ -10,7 +10,8 @@
     "db:clean": "node prisma/clean.js",
     "db:migrate:status": "prisma migrate status",
     "db:migrate:deploy": "prisma migrate deploy",
-    "test": "tsx --tsconfig tests/tsconfig.json --test tests/*.test.ts"
+    "test": "tsx --tsconfig tests/tsconfig.json --test tests/*.test.ts",
+    "documents:import-legacy": "tsx --tsconfig tests/tsconfig.json scripts/import-legacy-documents.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

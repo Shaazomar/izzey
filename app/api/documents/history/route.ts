@@ -1,49 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { getDocumentHistory, deleteDocumentRecord } from '@/lib/documents/job-manager';
+import { deleteDocument, listDocuments, toHistoryRecord } from '@/lib/documents/document-service';
+import { errorResponse, requireSession } from '@/lib/documents/route-helpers';
 
-export async function GET() {
+export const runtime = 'nodejs';
+
+export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized access' }, { status: 401 });
-    }
+    const { denied } = await requireSession();
+    if (denied) return denied;
 
-    const history = getDocumentHistory();
-
-    return NextResponse.json({
-      success: true,
-      history,
+    const sp = new URL(req.url).searchParams;
+    const records = await listDocuments({
+      q: sp.get('q') || undefined,
+      status: sp.get('status') || undefined,
+      from: sp.get('from') || undefined,
+      to: sp.get('to') || undefined,
     });
-  } catch (err: any) {
-    console.error('Error fetching document history:', err);
-    return NextResponse.json({ success: false, error: 'Failed to fetch document history.' }, { status: 500 });
+
+    return NextResponse.json({ success: true, history: records.map(toHistoryRecord) });
+  } catch (err) {
+    return errorResponse(err, 'Failed to fetch document history.');
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized access' }, { status: 401 });
-    }
+    const { denied } = await requireSession();
+    if (denied) return denied;
 
-    const { searchParams } = new URL(req.url);
-    const documentId = searchParams.get('documentId');
-
+    const documentId = new URL(req.url).searchParams.get('documentId');
     if (!documentId) {
       return NextResponse.json({ success: false, error: 'documentId parameter is required' }, { status: 400 });
     }
 
-    const deleted = deleteDocumentRecord(documentId);
-
+    const deleted = await deleteDocument(documentId);
     return NextResponse.json({
       success: deleted,
       message: deleted ? 'Document deleted successfully' : 'Document not found or already deleted',
     });
-  } catch (err: any) {
-    console.error('Error deleting document:', err);
-    return NextResponse.json({ success: false, error: 'Failed to delete document.' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err, 'Failed to delete document.');
   }
 }

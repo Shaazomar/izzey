@@ -316,3 +316,42 @@ enum EnquiryStatus {
   CONVERTED
   ARCHIVED
 }
+
+enum DocumentStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// A generated PDF. The file itself lives in cloud object storage (never on the app filesystem);
+/// this row is the durable record: where it is stored, who made it, and its generation status.
+model GeneratedDocument {
+  id                String         @id @default(uuid())
+  templateId        String
+  templateName      String
+  documentType      String
+  fileName          String
+  /// Object path inside the storage bucket (unique per document).
+  storagePath       String?        @unique
+  /// Stable app URL that streams the PDF from storage after an auth check.
+  fileUrl           String?
+  fileSize          Int            @default(0)
+  mimeType          String         @default("application/pdf")
+  status            DocumentStatus @default(PROCESSING)
+  errorMessage      String?
+  customerName      String?
+  inputData         Json
+  inputHash         String
+  /// Client-supplied idempotency key: a retried/double-submitted request cannot create a second record.
+  requestId         String?        @unique
+  createdById       String?
+  createdByName     String?
+  regeneratedFromId String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  completedAt       DateTime?
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([createdById, inputHash])
+}

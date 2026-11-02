@@ -1,31 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { getDocumentJob } from '@/lib/documents/job-manager';
+import { getDocument, toJob } from '@/lib/documents/document-service';
+import { errorResponse, requireSession } from '@/lib/documents/route-helpers';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
-) {
+export const runtime = 'nodejs';
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized access' }, { status: 401 });
-    }
+    const { denied } = await requireSession();
+    if (denied) return denied;
 
     const { jobId } = await params;
-    const job = getDocumentJob(jobId);
-
-    if (!job) {
+    const record = await getDocument(jobId);
+    if (!record) {
       return NextResponse.json({ success: false, error: 'Document job not found' }, { status: 404 });
     }
-
-    return NextResponse.json({
-      success: true,
-      job,
-    });
-  } catch (err: any) {
-    console.error('Error fetching job status:', err);
-    return NextResponse.json({ success: false, error: 'Failed to fetch job status.' }, { status: 500 });
+    return NextResponse.json({ success: true, job: toJob(record) });
+  } catch (err) {
+    return errorResponse(err, 'Failed to fetch job status.');
   }
 }
