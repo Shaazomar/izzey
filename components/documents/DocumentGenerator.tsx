@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import DocumentList from './DocumentList';
 import { 
   Plus, Trash2, FileText, Download, Eye, RefreshCw, 
   AlertCircle, CheckCircle2, Loader2, Calendar, MapPin, Building, User, Clock, X
@@ -54,23 +55,6 @@ interface JobState {
   fileSize?: number;
 }
 
-interface HistoryRecord {
-  id: string;
-  documentId: string;
-  templateId: string;
-  templateName: string;
-  fileName: string;
-  fileSize: number;
-  status: string;
-  createdAt: string;
-  downloadUrl: string;
-  previewUrl: string;
-  customerName?: string;
-  errorMessage?: string;
-  createdByName?: string;
-  regeneratedFromId?: string;
-}
-
 const initialFormState: FormData = {
   wohnungsgeber: {
     name: 'Izz & Hameed Dienstleistung UG',
@@ -100,24 +84,12 @@ export default function DocumentGenerator() {
   const [error, setError] = useState<string>('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
-  // History & Modal State
-  const [history, setHistory] = useState<HistoryRecord[]>([]);
-  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
-  const [historyError, setHistoryError] = useState<string>('');
-  const [searchText, setSearchText] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
+  const refreshList = () => setRefreshKey((k) => k + 1);
   // One idempotency key per submit action: a double click or network retry can never create two records.
   const requestIdRef = React.useRef<string | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>('Document Preview');
-
-  // Load history on mount and whenever search/filter changes (debounced)
-  useEffect(() => {
-    const t = setTimeout(() => fetchHistory(), 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, statusFilter]);
 
   // Poll job status until COMPLETED or FAILED
   useEffect(() => {
@@ -126,7 +98,7 @@ export default function DocumentGenerator() {
     if (currentJob.status === 'COMPLETED' || currentJob.status === 'FAILED') {
       setIsProcessing(false);
       if (currentJob.status === 'COMPLETED') {
-        fetchHistory();
+        refreshList();
       }
       return;
     }
@@ -140,7 +112,7 @@ export default function DocumentGenerator() {
           if (data.job.status === 'COMPLETED' || data.job.status === 'FAILED') {
             setIsProcessing(false);
             if (data.job.status === 'COMPLETED') {
-              fetchHistory();
+              refreshList();
             }
           }
         }
@@ -151,63 +123,6 @@ export default function DocumentGenerator() {
 
     return () => clearInterval(interval);
   }, [currentJob, isProcessing]);
-
-  const fetchHistory = async () => {
-    setHistoryLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchText.trim()) params.set('q', searchText.trim());
-      if (statusFilter !== 'ALL') params.set('status', statusFilter);
-      const res = await fetch(`/api/documents/history?${params.toString()}`);
-      const data = await res.json();
-      if (data.success && data.history) {
-        setHistory(data.history);
-        setHistoryError('');
-      } else {
-        setHistoryError(data.error || 'Failed to load documents.');
-      }
-    } catch (err) {
-      console.error('Failed to fetch history:', err);
-      setHistoryError('Could not reach the server to load documents.');
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const deleteHistoryRecord = async (documentId: string) => {
-    if (!confirm('Are you sure you want to delete this generated document record?')) return;
-    try {
-      const res = await fetch(`/api/documents/history?documentId=${documentId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        setHistory(prev => prev.filter(item => item.documentId !== documentId));
-      } else {
-        alert(data.error || 'Failed to delete document record.');
-      }
-    } catch (err) {
-      console.error('Failed to delete history record:', err);
-    }
-  };
-
-  const regenerateDocument = async (documentId: string) => {
-    if (regeneratingId) return;
-    setRegeneratingId(documentId);
-    setError('');
-    try {
-      const res = await fetch(`/api/documents/${documentId}/regenerate`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || 'Failed to regenerate the document.');
-      } else if (data.job) {
-        setCurrentJob(data.job);
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Network error occurred while regenerating the document.');
-    } finally {
-      setRegeneratingId(null);
-      fetchHistory();
-    }
-  };
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -325,7 +240,7 @@ export default function DocumentGenerator() {
         setIsProcessing(false);
         requestIdRef.current = null; // a failed attempt may be retried as a fresh request
         setError(data.error || 'Failed to generate the document.');
-        fetchHistory();
+        refreshList();
         return;
       }
 
@@ -761,152 +676,12 @@ export default function DocumentGenerator() {
         </div>
       )}
 
-      {/* 3. DOCUMENT HISTORY TABLE */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-heading font-extrabold text-lg text-slate-900">Document History</h3>
-            <p className="text-xs text-slate-500 font-mono">
-              View, preview, and download previously generated documents.
-            </p>
-          </div>
-          <button
-            onClick={fetchHistory}
-            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-            title="Refresh History"
-          >
-            <RefreshCw className={`w-4 h-4 ${historyLoading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 text-xs font-mono">
-          <input
-            type="search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search by name, client or creator..."
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:bg-white focus:border-[#2E4036]"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:outline-none"
-          >
-            <option value="ALL">All statuses</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="PROCESSING">Processing</option>
-            <option value="FAILED">Failed</option>
-          </select>
-        </div>
-
-        {historyError && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2 rounded-xl text-xs font-mono">{historyError}</div>
-        )}
-
-        {history.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 font-mono text-xs border border-dashed border-slate-200 rounded-2xl">
-            {searchText || statusFilter !== 'ALL' ? 'No documents match your search.' : 'No generated documents in history yet.'}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
-                  <th className="py-3 px-4 font-bold">Document Name</th>
-                  <th className="py-3 px-4 font-bold">Client / Inhabitant</th>
-                  <th className="py-3 px-4 font-bold">Created Date</th>
-                  <th className="py-3 px-4 font-bold">Size</th>
-                  <th className="py-3 px-4 font-bold">Status</th>
-                  <th className="py-3 px-4 font-bold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-800">
-                {history.map((rec) => (
-                  <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-[#2E4036]">
-                      {rec.fileName}
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-700">
-                      {rec.customerName || 'Client'}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-500">
-                      {new Date(rec.createdAt).toLocaleDateString('de-DE', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-500">
-                      {rec.status === 'COMPLETED' ? formatBytes(rec.fileSize) : '—'}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        title={rec.errorMessage || ''}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          rec.status === 'COMPLETED'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : rec.status === 'FAILED'
-                              ? 'bg-rose-100 text-rose-800'
-                              : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {rec.status}
-                      </span>
-                      {rec.status === 'FAILED' && rec.errorMessage && (
-                        <div className="text-[10px] text-rose-600 mt-1 max-w-[220px] normal-case whitespace-normal">{rec.errorMessage}</div>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {rec.status === 'COMPLETED' && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setPreviewPdfUrl(rec.previewUrl);
-                                setPreviewTitle(rec.fileName);
-                              }}
-                              className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Preview</span>
-                            </button>
-                            <a
-                              href={rec.downloadUrl}
-                              download={rec.fileName}
-                              className="px-3 py-1.5 rounded-lg bg-[#2E4036] hover:bg-[#1E2E25] text-white font-bold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              <span>Download</span>
-                            </a>
-                          </>
-                        )}
-                        <button
-                          onClick={() => regenerateDocument(rec.documentId)}
-                          disabled={regeneratingId !== null}
-                          className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                          title="Generate this document again from the same data"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${regeneratingId === rec.documentId ? 'animate-spin' : ''}`} />
-                          <span>Regenerate</span>
-                        </button>
-                        <button
-                          onClick={() => deleteHistoryRecord(rec.documentId)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Delete document"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* 3. DOCUMENT MANAGEMENT */}
+      <DocumentList
+        refreshKey={refreshKey}
+        onRegenerated={(job) => setCurrentJob(job)}
+        onError={(message) => setError(message)}
+      />
 
       {/* 4. INLINE PDF PREVIEW MODAL */}
       {previewPdfUrl && (

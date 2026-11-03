@@ -3,9 +3,17 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { DocumentError } from './document-service';
 
-export async function requireSession() {
+/** Roles that may open the Documents section (mirrors the ERP navigation). */
+export const DOCUMENT_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT'];
+/** Roles that may permanently delete documents. */
+export const DOCUMENT_DELETE_ROLES = ['SUPER_ADMIN', 'ADMIN'];
+
+export async function requireSession(allowedRoles: string[] = DOCUMENT_ROLES) {
   const session = await getServerSession(authOptions);
   if (!session) return { session: null as null, denied: NextResponse.json({ success: false, error: 'Unauthorized access' }, { status: 401 }) };
+  if (!allowedRoles.includes(String(session.user?.role))) {
+    return { session: null as null, denied: NextResponse.json({ success: false, error: 'You do not have permission to do this.' }, { status: 403 }) };
+  }
   return { session, denied: null as null };
 }
 
@@ -13,7 +21,7 @@ export const actorFrom = (session: any) => ({ id: session?.user?.id ?? null, nam
 
 export function errorResponse(err: unknown, fallback: string) {
   if (err instanceof DocumentError) {
-    return NextResponse.json({ success: false, error: err.message, documentId: err.documentId }, { status: err.status });
+    return NextResponse.json({ success: false, error: err.message }, { status: err.status });
   }
   console.error(fallback, err);
   return NextResponse.json({ success: false, error: fallback }, { status: 500 });

@@ -323,20 +323,20 @@ enum DocumentStatus {
   FAILED
 }
 
-/// A generated PDF. The file itself lives in cloud object storage (never on the app filesystem);
-/// this row is the durable record: where it is stored, who made it, and its generation status.
+/// A generated PDF. The file itself is stored in this row (`fileData`, PostgreSQL BYTEA): no filesystem and no
+/// external storage are involved, so it works on read-only serverless hosts. List queries must never select `fileData`.
 model GeneratedDocument {
   id                String         @id @default(uuid())
+  /// Human-readable unique number, e.g. DOC-2026-000042.
+  documentNumber    String         @unique
   templateId        String
   templateName      String
   documentType      String
   fileName          String
-  /// Object path inside the storage bucket (unique per document).
-  storagePath       String?        @unique
-  /// Stable app URL that streams the PDF from storage after an auth check.
-  fileUrl           String?
-  fileSize          Int            @default(0)
   mimeType          String         @default("application/pdf")
+  fileSize          Int            @default(0)
+  /// The PDF bytes. Null only for FAILED/legacy rows that have no file.
+  fileData          Bytes?
   status            DocumentStatus @default(PROCESSING)
   errorMessage      String?
   customerName      String?
