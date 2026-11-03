@@ -1,24 +1,25 @@
 /**
- * Document generation workflow (stateless, serverless-safe):
+ * Document generation workflow (stateless, serverless-safe, database-backed):
  *
- *   1 validate input -> 2 create DB record (PROCESSING) -> 3 load template + fill fields -> 4 generate PDF in memory
- *   -> 5 verify PDF integrity -> 6 upload bytes to cloud storage -> 7 mark COMPLETED in the DB.
+ *   1 validate input -> 2 load template + fill fields -> 3 generate PDF Buffer in memory -> 4 verify PDF + size limit
+ *   -> 5 insert ONE row holding metadata AND the PDF bytes (PostgreSQL BYTEA).
  *
- * A record is COMPLETED only after BOTH the upload and the database write succeeded. Every failure marks the
- * record FAILED with a readable message and removes any object that was already uploaded.
- * All state lives in Postgres + object storage, so it survives restarts and works across serverless instances.
+ * Nothing touches the filesystem and no external storage is used. The single INSERT is atomic, so a failed
+ * generation never leaves an incomplete record behind: either a COMPLETED document with its bytes exists, or nothing.
  */
 import crypto from 'crypto';
 import { Prisma, DocumentStatus } from '@prisma/client';
 import prisma from '../prisma';
 import { generateWohnungsgeberPDF, WohnungsgeberData } from './template-engine';
 import { verifyPDF } from './pdf-verifier';
-import { getDocumentStorage, StorageError } from './storage';
 import { wohnungsgeberSchema } from './schema';
 
 export const TEMPLATE_ID = 'wohnungsgeberbestaetigung';
 export const TEMPLATE_NAME = 'Wohnungsgeberbestätigung (§ 19 BMG)';
 export const DOCUMENT_TYPE = 'WOHNUNGSGEBERBESTAETIGUNG';
+
+/** Hard upper limit for one stored PDF. Generated documents are ~10-50 KB; this guards against runaway output. */
+export const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
 /** A request with identical content from the same user inside this window is treated as a double submit. */
 const DUPLICATE_WINDOW_MS = 10_000;
@@ -26,7 +27,7 @@ const DUPLICATE_WINDOW_MS = 10_000;
 const STALE_PROCESSING_MS = 5 * 60_000;
 
 export class DocumentError extends Error {
-  constructor(message: string, public readonly status = 500, public readonly documentId?: string) {
+  constructor(message: string, public readonly status = 500) {
     super(message);
     this.name = 'DocumentError';
   }
@@ -63,14 +64,40 @@ function fileNameFor(data: WohnungsgeberData): string {
   return `Wohnungsgeberbestaetigung_${personName}.pdf`;
 }
 
-/** Unique, collision-free object path: <template>/<yyyy>/<mm>/<uuid>.pdf */
-function storagePathFor(id: string, now = new Date()): string {
-  const yyyy = now.getUTCFullYear();
-  const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-  return `${TEMPLATE_ID}/${yyyy}/${mm}/${id}.pdf`;
-}
+/** Metadata columns only. `fileData` (the PDF bytes) and `inputData` are never part of list/detail responses. */
+const META_SELECT = {
+  id: true,
+  documentNumber: true,
+  templateId: true,
+  templateName: true,
+  documentType: true,
+  fileName: true,
+  mimeType: true,
+  fileSize: true,
+  status: true,
+  errorMessage: true,
+  customerName: true,
+  createdById: true,
+  createdByName: true,
+  regeneratedFromId: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+} satisfies Prisma.GeneratedDocumentSelect;
 
-export type DocumentRecord = NonNullable<Awaited<ReturnType<typeof prisma.generatedDocument.findUnique>>>;
+export type DocumentRecord = Prisma.GeneratedDocumentGetPayload<{ select: typeof META_SELECT }>;
+
+/** DOC-<year>-<6 digit counter> from a database sequence (unique across instances). */
+async function nextDocumentNumber(): Promise<string> {
+  const year = new Date().getUTCFullYear();
+  try {
+    const rows = await prisma.$queryRaw<{ n: bigint }[]>`SELECT nextval('"GeneratedDocument_number_seq"') AS n`;
+    return `DOC-${year}-${String(rows[0].n).padStart(6, '0')}`;
+  } catch {
+    // Sequence missing (schema created with `db push`): fall back to a collision-resistant suffix.
+    return `DOC-${year}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  }
+}
 
 const PROGRESS: Record<DocumentStatus, number> = { PROCESSING: 55, COMPLETED: 100, FAILED: 0 };
 
@@ -79,6 +106,7 @@ export function toHistoryRecord(r: DocumentRecord) {
   return {
     id: r.id,
     documentId: r.id,
+    documentNumber: r.documentNumber,
     templateId: r.templateId,
     templateName: r.templateName,
     documentType: r.documentType,
@@ -87,11 +115,13 @@ export function toHistoryRecord(r: DocumentRecord) {
     status: r.status,
     errorMessage: r.errorMessage ?? undefined,
     createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
     completedAt: r.completedAt?.toISOString(),
-    downloadUrl: r.fileUrl || downloadUrlFor(r.id),
+    downloadUrl: downloadUrlFor(r.id),
     previewUrl: previewUrlFor(r.id),
     customerName: r.customerName ?? undefined,
     createdByName: r.createdByName ?? undefined,
+    mimeType: r.mimeType,
     regeneratedFromId: r.regeneratedFromId ?? undefined,
   };
 }
@@ -112,6 +142,7 @@ export function toJob(r: DocumentRecord) {
   return {
     id: r.id,
     documentId: r.id,
+    documentNumber: r.documentNumber,
     templateId: r.templateId,
     templateName: r.templateName,
     status: r.status,
@@ -123,7 +154,7 @@ export function toJob(r: DocumentRecord) {
         : 'Generating document...',
     steps,
     errorMessage: r.errorMessage ?? undefined,
-    downloadUrl: done ? r.fileUrl || downloadUrlFor(r.id) : undefined,
+    downloadUrl: done ? downloadUrlFor(r.id) : undefined,
     previewUrl: done ? previewUrlFor(r.id) : undefined,
     fileName: r.fileName,
     fileSize: r.fileSize,
@@ -160,17 +191,9 @@ export async function generateDocument(rawInput: unknown, opts: GenerateOptions 
   const inputHash = hashInput(input);
   const actorId = opts.actor?.id ?? null;
 
-  // Fail early (before creating any record) if storage is not configured.
-  let storage;
-  try {
-    storage = getDocumentStorage();
-  } catch (e: any) {
-    throw new DocumentError(e?.message || 'Document storage is not configured.', 503);
-  }
-
   // Prevent duplicate records: same idempotency key, or an identical double-submit within seconds.
   if (opts.requestId) {
-    const existing = await prisma.generatedDocument.findUnique({ where: { requestId: opts.requestId } });
+    const existing = await prisma.generatedDocument.findUnique({ where: { requestId: opts.requestId }, select: META_SELECT });
     if (existing) return { record: existing, duplicate: true };
   }
   if (!opts.allowDuplicate) {
@@ -178,27 +201,49 @@ export async function generateDocument(rawInput: unknown, opts: GenerateOptions 
       where: {
         inputHash,
         createdById: actorId,
-        status: { in: ['PROCESSING', 'COMPLETED'] },
+        status: 'COMPLETED',
         createdAt: { gt: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
       },
       orderBy: { createdAt: 'desc' },
+      select: META_SELECT,
     });
     if (recent) return { record: recent, duplicate: true };
   }
 
-  // 2. Create the record first so every outcome (including failure) is visible and auditable.
-  const id = crypto.randomUUID();
-  const firstPerson = input.persons[0];
-  let record: DocumentRecord;
+  // 2 + 3. Load template, populate fields, generate the PDF entirely in memory.
+  let pdfBytes: Uint8Array;
   try {
-    record = await prisma.generatedDocument.create({
+    pdfBytes = await generateWohnungsgeberPDF(input);
+  } catch (e: any) {
+    console.error('PDF generation failed:', e);
+    throw new DocumentError(`PDF generation failed: ${e?.message || 'unknown error'}`, 500);
+  }
+
+  // 4. Verify integrity and size before anything is stored.
+  const verification = await verifyPDF(pdfBytes, 1);
+  if (!verification.isValid) {
+    throw new DocumentError(`PDF integrity check failed: ${verification.error || 'invalid PDF'}`, 500);
+  }
+  if (pdfBytes.length > MAX_PDF_BYTES) {
+    throw new DocumentError(`The generated PDF is too large (${pdfBytes.length} bytes, limit ${MAX_PDF_BYTES}).`, 413);
+  }
+
+  // 5. Persist metadata + PDF bytes in ONE atomic insert. If it fails, no record exists.
+  const firstPerson = input.persons[0];
+  try {
+    const documentNumber = await nextDocumentNumber();
+    const record = await prisma.generatedDocument.create({
       data: {
-        id,
+        documentNumber,
         templateId: TEMPLATE_ID,
         templateName: TEMPLATE_NAME,
         documentType: DOCUMENT_TYPE,
         fileName: fileNameFor(input),
-        status: 'PROCESSING',
+        mimeType: 'application/pdf',
+        fileSize: pdfBytes.length,
+        fileData: Buffer.from(pdfBytes),
+        status: 'COMPLETED',
+        completedAt: new Date(),
         customerName: firstPerson ? `${firstPerson.firstName} ${firstPerson.lastName}` : 'Client',
         inputData: input as unknown as Prisma.InputJsonValue,
         inputHash,
@@ -207,78 +252,29 @@ export async function generateDocument(rawInput: unknown, opts: GenerateOptions 
         createdByName: opts.actor?.name ?? null,
         regeneratedFromId: opts.regeneratedFromId ?? null,
       },
+      select: META_SELECT,
     });
+    return { record, duplicate: false };
   } catch (e: any) {
+    // A concurrent request with the same idempotency key won the race: return its record.
     if (e?.code === 'P2002' && opts.requestId) {
-      const existing = await prisma.generatedDocument.findUnique({ where: { requestId: opts.requestId } });
+      const existing = await prisma.generatedDocument.findUnique({ where: { requestId: opts.requestId }, select: META_SELECT });
       if (existing) return { record: existing, duplicate: true };
     }
-    console.error('Document record could not be created:', e);
+    console.error('Document could not be saved to the database:', e);
     throw new DocumentError('The document could not be saved to the database. Please try again.', 500);
   }
-
-  const fail = async (message: string, status: number, uploadedPath?: string): Promise<never> => {
-    if (uploadedPath) await storage.remove(uploadedPath).catch((err) => console.error('Orphan cleanup failed:', err));
-    await prisma.generatedDocument
-      .update({ where: { id }, data: { status: 'FAILED', errorMessage: message, storagePath: null, fileUrl: null } })
-      .catch((err) => console.error('Could not mark document as FAILED:', err));
-    throw new DocumentError(message, status, id);
-  };
-
-  // 3 + 4. Load template, populate fields, generate the PDF in memory (no filesystem).
-  let pdfBytes: Uint8Array;
-  try {
-    pdfBytes = await generateWohnungsgeberPDF(input);
-  } catch (e: any) {
-    console.error('PDF generation failed:', e);
-    return fail(`PDF generation failed: ${e?.message || 'unknown error'}`, 500);
-  }
-
-  // 5. Verify integrity before anything is stored.
-  const verification = await verifyPDF(pdfBytes, 1);
-  if (!verification.isValid) {
-    return fail(`PDF integrity check failed: ${verification.error || 'invalid PDF'}`, 500);
-  }
-
-  // 6. Upload buffer to cloud storage.
-  const storagePath = storagePathFor(id);
-  try {
-    await storage.upload(storagePath, pdfBytes, 'application/pdf');
-  } catch (e: any) {
-    console.error('Document upload failed:', e);
-    const msg = e instanceof StorageError ? e.message : 'Cloud storage upload failed.';
-    return fail(`The PDF could not be uploaded to cloud storage. ${msg}`, 502);
-  }
-
-  // 7. Persist metadata. COMPLETED is set only here, after the upload succeeded.
-  try {
-    record = await prisma.generatedDocument.update({
-      where: { id },
-      data: {
-        status: 'COMPLETED',
-        storagePath,
-        fileUrl: downloadUrlFor(id),
-        fileSize: verification.fileSize,
-        errorMessage: null,
-        completedAt: new Date(),
-      },
-    });
-  } catch (e: any) {
-    console.error('Document metadata could not be saved:', e);
-    return fail('The PDF was created but its record could not be saved to the database. Please try again.', 500, storagePath);
-  }
-
-  return { record, duplicate: false };
 }
 
 export async function getDocument(id: string) {
   await failStaleProcessing().catch(() => {});
-  return prisma.generatedDocument.findUnique({ where: { id } });
+  return prisma.generatedDocument.findUnique({ where: { id }, select: META_SELECT });
 }
 
 export interface ListFilters {
   q?: string;
   status?: string;
+  type?: string;
   from?: string;
   to?: string;
   limit?: number;
@@ -290,9 +286,11 @@ export async function listDocuments(filters: ListFilters = {}) {
   if (filters.status && ['PROCESSING', 'COMPLETED', 'FAILED'].includes(filters.status)) {
     where.status = filters.status as DocumentStatus;
   }
+  if (filters.type?.trim()) where.documentType = filters.type.trim();
   if (filters.q?.trim()) {
     const q = filters.q.trim();
     where.OR = [
+      { documentNumber: { contains: q, mode: 'insensitive' } },
       { fileName: { contains: q, mode: 'insensitive' } },
       { customerName: { contains: q, mode: 'insensitive' } },
       { templateName: { contains: q, mode: 'insensitive' } },
@@ -308,51 +306,42 @@ export async function listDocuments(filters: ListFilters = {}) {
   }
   if (createdAt.gte || createdAt.lte) where.createdAt = createdAt;
 
+  // META_SELECT deliberately excludes fileData: list responses never carry PDF binary.
   return prisma.generatedDocument.findMany({
     where,
+    select: META_SELECT,
     orderBy: { createdAt: 'desc' },
     take: Math.min(filters.limit ?? 200, 500),
   });
 }
 
-/** Reads the stored PDF bytes (from cloud storage) for download/preview. */
+/** Reads the stored PDF bytes from the database for download/preview/print. */
 export async function readDocumentFile(id: string): Promise<{ record: DocumentRecord; bytes: Uint8Array }> {
-  const record = await getDocument(id);
-  if (!record) throw new DocumentError('Document not found.', 404);
-  if (record.status !== 'COMPLETED' || !record.storagePath) {
+  const row = await prisma.generatedDocument.findUnique({ where: { id }, select: { ...META_SELECT, fileData: true } });
+  if (!row) throw new DocumentError('Document not found.', 404);
+  const { fileData, ...record } = row;
+  if (record.status !== 'COMPLETED') {
     throw new DocumentError(
       record.status === 'FAILED' ? 'This document failed to generate and has no file.' : 'This document is still being generated.',
       409
     );
   }
-  try {
-    const bytes = await getDocumentStorage().download(record.storagePath);
-    return { record, bytes };
-  } catch (e: any) {
-    console.error('Document download failed:', e);
-    if (e instanceof StorageError && e.status === 404) throw new DocumentError('The stored file is missing. Please regenerate the document.', 404);
-    throw new DocumentError('The document could not be retrieved from cloud storage. Please try again.', 502);
+  if (!fileData || fileData.length === 0) {
+    throw new DocumentError('The stored file is missing. Please regenerate the document.', 404);
   }
+  return { record, bytes: new Uint8Array(fileData) };
 }
 
 export async function regenerateDocument(id: string, actor: Actor) {
-  const source = await prisma.generatedDocument.findUnique({ where: { id } });
+  const source = await prisma.generatedDocument.findUnique({ where: { id }, select: { id: true, inputData: true } });
   if (!source) throw new DocumentError('Document not found.', 404);
+  if (!source.inputData || Object.keys(source.inputData as object).length === 0) {
+    throw new DocumentError('This document has no saved input data and cannot be regenerated.', 422);
+  }
   return generateDocument(source.inputData, { actor, regeneratedFromId: source.id, allowDuplicate: true });
 }
 
 export async function deleteDocument(id: string): Promise<boolean> {
-  const record = await prisma.generatedDocument.findUnique({ where: { id } });
-  if (!record) return false;
-  if (record.storagePath) {
-    try {
-      await getDocumentStorage().remove(record.storagePath);
-    } catch (e: any) {
-      // Keep the record so the file is never orphaned; the user can retry.
-      console.error('Document file could not be deleted:', e);
-      throw new DocumentError('The stored file could not be deleted from cloud storage. Please try again.', 502);
-    }
-  }
-  await prisma.generatedDocument.delete({ where: { id } });
-  return true;
+  const { count } = await prisma.generatedDocument.deleteMany({ where: { id } });
+  return count > 0;
 }

@@ -1,15 +1,14 @@
 /**
  * One-off import of documents created by the old filesystem-based generator
- * (storage/history.json + storage/documents/*.pdf) into cloud storage + the database.
+ * (storage/history.json + storage/documents/*.pdf) into the database.
  *
- *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... DB_URL=... npm run documents:import-legacy -- ./storage
+ *   DB_URL=... npm run documents:import-legacy -- ./storage
  *
  * Idempotent: records that already exist are skipped. The source files are left untouched.
  */
 import fs from 'fs';
 import path from 'path';
 import prisma from '../lib/prisma';
-import { getDocumentStorage } from '../lib/documents/storage';
 import { verifyPDF } from '../lib/documents/pdf-verifier';
 
 async function main() {
@@ -17,7 +16,6 @@ async function main() {
   const historyFile = path.join(dir, 'history.json');
   if (!fs.existsSync(historyFile)) throw new Error(`No history.json found in ${dir}`);
   const history: any[] = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
-  const storage = getDocumentStorage();
   let imported = 0;
   let skipped = 0;
 
@@ -29,7 +27,7 @@ async function main() {
       skipped++;
       continue;
     }
-    if (await prisma.generatedDocument.findUnique({ where: { id } })) {
+    if (await prisma.generatedDocument.findUnique({ where: { id }, select: { id: true } })) {
       skipped++;
       continue;
     }
@@ -41,17 +39,16 @@ async function main() {
       continue;
     }
     const created = new Date(h.createdAt || Date.now());
-    const storagePath = `wohnungsgeberbestaetigung/${created.getUTCFullYear()}/${String(created.getUTCMonth() + 1).padStart(2, '0')}/${id}.pdf`;
-    await storage.upload(storagePath, bytes, 'application/pdf');
+    const [{ n }] = await prisma.$queryRaw<{ n: bigint }[]>`SELECT nextval('"GeneratedDocument_number_seq"') AS n`;
     await prisma.generatedDocument.create({
       data: {
         id,
+        documentNumber: `DOC-${created.getUTCFullYear()}-${String(n).padStart(6, '0')}`,
         templateId: h.templateId || 'wohnungsgeberbestaetigung',
         templateName: h.templateName || 'Wohnungsgeberbestätigung (§ 19 BMG)',
         documentType: 'WOHNUNGSGEBERBESTAETIGUNG',
         fileName: h.fileName || `${id}.pdf`,
-        storagePath,
-        fileUrl: `/api/documents/${id}/download`,
+        fileData: Buffer.from(bytes),
         fileSize: check.fileSize,
         status: 'COMPLETED',
         customerName: h.customerName ?? null,

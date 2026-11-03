@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteDocument, listDocuments, toHistoryRecord } from '@/lib/documents/document-service';
-import { errorResponse, requireSession } from '@/lib/documents/route-helpers';
+import { DOCUMENT_DELETE_ROLES, errorResponse, requireSession } from '@/lib/documents/route-helpers';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const records = await listDocuments({
       q: sp.get('q') || undefined,
       status: sp.get('status') || undefined,
+      type: sp.get('type') || undefined,
       from: sp.get('from') || undefined,
       to: sp.get('to') || undefined,
     });
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { denied } = await requireSession();
+    const { denied } = await requireSession(DOCUMENT_DELETE_ROLES);
     if (denied) return denied;
 
     const documentId = new URL(req.url).searchParams.get('documentId');
