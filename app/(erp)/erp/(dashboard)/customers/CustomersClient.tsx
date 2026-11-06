@@ -23,7 +23,7 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     (c.companyName && c.companyName.toLowerCase().includes(search.toLowerCase())) ||
-    c.email.toLowerCase().includes(search.toLowerCase())
+    (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
   );
 
   const handleOpenCreate = () => {
@@ -165,7 +165,7 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
                       )}
                     </td>
                     <td className="py-3.5 pr-2">
-                      <div>{c.email}</div>
+                      {c.email && <div>{c.email}</div>}
                       {c.phone && <div className="text-dark/50 mt-0.5">{c.phone}</div>}
                     </td>
                     <td className="py-3.5 pr-2">
@@ -246,10 +246,12 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
 
               {/* Info Matrix */}
               <div className="space-y-3 font-mono text-xs border-t border-b border-black/5 py-4">
-                <div className="flex items-center gap-2 text-dark/80">
-                  <Mail className="w-3.5 h-3.5 text-dark/40" />
-                  <span className="truncate">{selectedCustomer.email}</span>
-                </div>
+                {selectedCustomer.email && (
+                  <div className="flex items-center gap-2 text-dark/80">
+                    <Mail className="w-3.5 h-3.5 text-dark/40" />
+                    <span className="truncate">{selectedCustomer.email}</span>
+                  </div>
+                )}
                 {selectedCustomer.phone && (
                   <div className="flex items-center gap-2 text-dark/80">
                     <Phone className="w-3.5 h-3.5 text-dark/40" />
@@ -368,7 +370,7 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
 
               <div className="flex flex-col space-y-1">
                 <label className="text-[10px] font-bold font-mono tracking-wider text-dark/60 uppercase">EMAIL ADDRESS</label>
-                <input type="email" name="email" required defaultValue={editingCustomer?.email || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="john@example.com" />
+                <input type="email" name="email" defaultValue={editingCustomer?.email || ''} className="bg-background border border-black/5 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-accent" placeholder="Optional" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

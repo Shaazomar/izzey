@@ -13,7 +13,7 @@ interface CustomerDetails {
   name: string;
   companyName?: string | null;
   propertyAddress: string;
-  email: string;
+  email?: string | null;
   phone?: string | null;
   vatNumber?: string | null;
   service?: string;
@@ -84,7 +84,9 @@ export default function CompanySection({
           <p className="text-slate-700 mt-0.5 whitespace-pre-wrap">{customer.propertyAddress}</p>
         </div>
         <div className="space-y-0.5 text-slate-600 font-mono text-[10px]">
-          <p><span className="text-slate-400 font-bold uppercase mr-1">MAIL:</span>{customer.email}</p>
+          {customer.email && (
+            <p><span className="text-slate-400 font-bold uppercase mr-1">MAIL:</span>{customer.email}</p>
+          )}
           {customer.phone && (
             <p><span className="text-slate-400 font-bold uppercase mr-1">TEL:</span>{customer.phone}</p>
           )}

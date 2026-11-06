@@ -26,7 +26,7 @@ export default function CustomerModal({ isOpen, onClose, onSuccess }: CustomerMo
 
     const payload = {
       name: data.name as string,
-      email: data.email as string,
+      email: ((data.email as string) || '').trim() || undefined,
       phone: (data.phone as string) || undefined,
       companyName: (data.companyName as string) || undefined,
       notes: (data.notes as string) || undefined,
@@ -94,11 +94,10 @@ export default function CustomerModal({ isOpen, onClose, onSuccess }: CustomerMo
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-slate-500 font-bold uppercase mb-1">Email *</label>
+              <label className="block text-slate-500 font-bold uppercase mb-1">Email</label>
               <input
                 name="email"
                 type="email"
-                required
                 placeholder="thomas@example.de"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:bg-white focus:border-[#2E4036] font-bold transition-all"
               />

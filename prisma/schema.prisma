@@ -22,7 +22,7 @@ model Customer {
   id          String      @id @default(uuid())
   name        String
   companyName String?
-  email       String      @unique
+  email       String?     @unique
   phone       String?
   vatNumber   String?
   address     String

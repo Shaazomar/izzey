@@ -4,7 +4,11 @@ import { Role, QuotationStatus, InvoiceStatus, PaymentMethod, ExpenseCategory, J
 export const CustomerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   companyName: z.string().optional().nullable(),
-  email: z.string().email('Invalid email address'),
+  // Email is optional: blank means "no email". If one is given it must still be valid.
+  email: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+    z.string().trim().email('Invalid email address').nullable().optional()
+  ),
   phone: z.string().optional().nullable(),
   vatNumber: z.string().optional().nullable(),
   address: z.string().min(3, 'Address must be at least 3 characters'),

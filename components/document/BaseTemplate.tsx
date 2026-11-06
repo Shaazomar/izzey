@@ -47,7 +47,7 @@ export interface DocumentData {
     name: string;
     companyName?: string | null;
     propertyAddress: string;
-    email: string;
+    email?: string | null;
     phone?: string | null;
     vatNumber?: string | null;
     service?: string;
