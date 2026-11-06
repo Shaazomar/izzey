@@ -442,7 +442,7 @@ export default function QuotationBuilder({
       name: custName || 'Client Name',
       companyName: custCompany || undefined,
       propertyAddress: custPropertyAddress || custAddress || 'Berlin, Germany',
-      email: custEmail || 'client@example.com',
+      email: custEmail || undefined,
       phone: custPhone || undefined,
       vatNumber: custVatNumber || undefined,
     },

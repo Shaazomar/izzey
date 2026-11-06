@@ -1,6 +1,15 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath as nextRevalidatePath } from 'next/cache';
+
+// Cache refresh must never turn a successful save into an error (same pattern as the invoice actions).
+function revalidatePath(path: string) {
+  try {
+    nextRevalidatePath(path);
+  } catch (e) {
+    console.warn('revalidatePath error ignored:', e);
+  }
+}
 import prisma from '../../lib/prisma';
 import { CustomerSchema, PropertySchema } from '../../lib/validators';
 
@@ -67,18 +76,20 @@ export async function createCustomer(data: any) {
     const { properties, ...customerData } = data;
     const validatedData = CustomerSchema.parse(customerData);
     
-    // Check if email already exists
-    const existing = await prisma.customer.findUnique({
-      where: { email: validatedData.email.toLowerCase() }
-    });
-    if (existing) {
-      return { success: false, error: 'A customer with this email already exists.' };
+    const email = validatedData.email ? validatedData.email.toLowerCase() : null;
+
+    // Check if email already exists (only when an email was given; customers without email never clash)
+    if (email) {
+      const existing = await prisma.customer.findUnique({ where: { email } });
+      if (existing) {
+        return { success: false, error: 'A customer with this email already exists.' };
+      }
     }
 
     const customer = await prisma.customer.create({
       data: {
         ...validatedData,
-        email: validatedData.email.toLowerCase(),
+        email,
         properties: properties && properties.length > 0 ? {
           create: properties.map((p: any) => ({
             address: p.address,
@@ -106,14 +117,16 @@ export async function createCustomer(data: any) {
 export async function updateCustomer(id: string, data: any) {
   try {
     const validatedData = CustomerSchema.parse(data);
-    const normalizedEmail = validatedData.email.toLowerCase();
+    const normalizedEmail = validatedData.email ? validatedData.email.toLowerCase() : null;
 
-    // Check if another customer already uses this email
-    const existing = await prisma.customer.findUnique({
-      where: { email: normalizedEmail },
-    });
-    if (existing && existing.id !== id) {
-      return { success: false, error: 'A customer with this email already exists.' };
+    // Check if another customer already uses this email (only when an email was given)
+    if (normalizedEmail) {
+      const existing = await prisma.customer.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (existing && existing.id !== id) {
+        return { success: false, error: 'A customer with this email already exists.' };
+      }
     }
 
     const customer = await prisma.customer.update({
